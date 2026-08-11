@@ -18,6 +18,7 @@ import {
 } from '@fluentui/react-components';
 import { ArrowRedoRegular, ArrowUndoRegular, ArrowUploadRegular, ArrowDownloadRegular, DeleteRegular } from '@fluentui/react-icons';
 import { useThemeModel } from '../../state/ThemeContext';
+import { usePortalMount } from '../../state/PortalMountContext';
 import { createDefaultAppHeaderColorsModel, createDefaultThemeModel } from '../../model/defaults';
 import { exportThemeToFile, importThemeFromFile } from '../../services/themeFile';
 import type { ThemeDocumentKind } from '../../model/theme';
@@ -72,6 +73,7 @@ function errorMessage(error: unknown): string {
  */
 export function ThemePanel() {
     const styles = useStyles();
+    const mountNode = usePortalMount();
     const { model, dispatch, dirty, canUndo, canRedo } = useThemeModel();
     const [busy, setBusy] = useState(false);
 
@@ -121,10 +123,10 @@ export function ThemePanel() {
             </div>
 
             <Toolbar size="small">
-                <Tooltip content="Undo" relationship="label">
+                <Tooltip content="Undo" relationship="label" mountNode={mountNode}>
                     <ToolbarButton icon={<ArrowUndoRegular />} disabled={!canUndo} onClick={() => dispatch({ type: 'undo' })} aria-label="Undo" />
                 </Tooltip>
-                <Tooltip content="Redo" relationship="label">
+                <Tooltip content="Redo" relationship="label" mountNode={mountNode}>
                     <ToolbarButton icon={<ArrowRedoRegular />} disabled={!canRedo} onClick={() => dispatch({ type: 'redo' })} aria-label="Redo" />
                 </Tooltip>
                 <ToolbarDivider />

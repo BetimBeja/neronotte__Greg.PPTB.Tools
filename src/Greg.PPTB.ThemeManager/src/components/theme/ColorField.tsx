@@ -15,6 +15,7 @@ import {
     tokens,
 } from '@fluentui/react-components';
 import { ArrowResetRegular } from '@fluentui/react-icons';
+import { usePortalMount } from '../../state/PortalMountContext';
 import { hexToHsv, hsvToHex, isValidHex, normalizeHex } from '../../model/brandRamp';
 import { contrastRatio, WCAG_AA_MINIMUM_CONTRAST } from '../../model/contrast';
 
@@ -83,6 +84,7 @@ export interface ColorFieldProps {
  */
 export function ColorField({ label, value, onChange, placeholder, onReset, contrastAgainst, hint, disabled }: ColorFieldProps) {
     const styles = useStyles();
+    const mountNode = usePortalMount();
     const [text, setText] = useState(value ?? '');
     const [open, setOpen] = useState(false);
 
@@ -127,7 +129,7 @@ export function ColorField({ label, value, onChange, placeholder, onReset, contr
         <div className={styles.root}>
             <Label size="small">{label}</Label>
             <div className={styles.row}>
-                <Popover open={open} onOpenChange={(_, data) => setOpen(data.open)} trapFocus>
+                <Popover open={open} onOpenChange={(_, data) => setOpen(data.open)} trapFocus mountNode={mountNode}>
                     <PopoverTrigger disableButtonEnhancement>
                         <button
                             type="button"
@@ -169,7 +171,7 @@ export function ColorField({ label, value, onChange, placeholder, onReset, contr
                     }}
                 />
                 {onReset && (
-                    <Tooltip content={`Reset ${label}`} relationship="label">
+                    <Tooltip content={`Reset ${label}`} relationship="label" mountNode={mountNode}>
                         <Button appearance="subtle" size="small" icon={<ArrowResetRegular />} disabled={disabled || value === undefined} onClick={onReset} />
                     </Tooltip>
                 )}

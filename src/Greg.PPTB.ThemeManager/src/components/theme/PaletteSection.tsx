@@ -2,6 +2,7 @@ import { Button, Divider, Dropdown, Field, Option, Slider, Switch, Text, Tooltip
 import { ArrowResetRegular } from '@fluentui/react-icons';
 import { PALETTE_SLOTS, type PaletteSlot } from '../../model/theme';
 import { useThemeModel } from '../../state/ThemeContext';
+import { usePortalMount } from '../../state/PortalMountContext';
 import { THEME_PRESETS } from '../../model/defaults';
 import { ColorField } from './ColorField';
 
@@ -34,6 +35,7 @@ const useStyles = makeStyles({
  */
 export function PaletteSection() {
     const styles = useStyles();
+    const mountNode = usePortalMount();
     const { model, dispatch, generatedPalette, resolvedPalette } = useThemeModel();
     const hasOverrides = Object.keys(model.paletteOverrides).length > 0;
 
@@ -41,6 +43,7 @@ export function PaletteSection() {
         <div className={styles.section}>
             <Field label="Start from a preset" hint="Presets only seed the palette and the header colours — everything stays editable.">
                 <Dropdown
+                    mountNode={mountNode}
                     placeholder="Choose a preset"
                     selectedOptions={[]}
                     value=""
@@ -91,7 +94,7 @@ export function PaletteSection() {
 
             <div className={styles.sectionHeader}>
                 <Text weight="semibold">Palette slot overrides</Text>
-                <Tooltip content="Clear every slot override" relationship="label">
+                <Tooltip content="Clear every slot override" relationship="label" mountNode={mountNode}>
                     <Button appearance="subtle" size="small" icon={<ArrowResetRegular />} disabled={!hasOverrides} onClick={() => dispatch({ type: 'resetPaletteOverrides' })} />
                 </Tooltip>
             </div>

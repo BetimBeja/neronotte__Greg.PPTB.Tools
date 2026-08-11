@@ -1,6 +1,7 @@
 import { Combobox, Field, Option, Text, makeStyles, tokens } from '@fluentui/react-components';
 import { WEB_SAFE_FONTS } from '../../model/defaults';
 import { useThemeModel } from '../../state/ThemeContext';
+import { usePortalMount } from '../../state/PortalMountContext';
 
 const useStyles = makeStyles({
     section: {
@@ -33,6 +34,7 @@ function firstFamily(font: string): string {
 export function TypographySection() {
     const styles = useStyles();
     const { model, dispatch } = useThemeModel();
+    const mountNode = usePortalMount();
 
     const family = model.font ? firstFamily(model.font) : undefined;
     const isWebSafe = family !== undefined && WEB_SAFE_FONTS.some((f) => f.toLowerCase() === family.toLowerCase());
@@ -41,6 +43,7 @@ export function TypographySection() {
         <div className={styles.section}>
             <Field label="Font" hint="A CSS font-family string, e.g. 'GreatVibes', cursive.">
                 <Combobox
+                    mountNode={mountNode}
                     freeform
                     placeholder="Segoe UI"
                     value={model.font ?? ''}

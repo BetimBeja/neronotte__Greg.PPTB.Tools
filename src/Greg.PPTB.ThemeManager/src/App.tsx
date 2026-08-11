@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { FluentProvider, PortalMountNodeProvider, webLightTheme, webDarkTheme, Title3, Text, makeStyles, tokens } from '@fluentui/react-components';
+import { useRef } from 'react';
+import { FluentProvider, webLightTheme, webDarkTheme, Title3, Text, makeStyles, tokens } from '@fluentui/react-components';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ConfigPanel } from './components/config/ConfigPanel';
 import { ThemePanel } from './components/theme/ThemePanel';
 import { PreviewFrame } from './components/preview/PreviewFrame';
 import { useHostTheme } from './hooks/useToolboxAPI';
 import { ThemeProvider } from './state/ThemeContext';
+import { PortalMountProvider } from './state/PortalMountContext';
 
 const useStyles = makeStyles({
     root: {
@@ -44,6 +45,7 @@ const useStyles = makeStyles({
         left: 0,
         width: 0,
         height: 0,
+        zIndex: 1000000,
     },
 });
 
@@ -56,12 +58,12 @@ const useStyles = makeStyles({
 function App() {
     const hostTheme = useHostTheme();
     const styles = useStyles();
-    // Without an explicit portal mount node, Fluent creates (and re-creates)
-    // one on `document.body` the first time a popup is opened, which makes the
-    // whole page flash blank for a moment. Providing our own stable host inside
-    // the provider avoids that glitch. A callback ref (rather than `useRef`) is
-    // used so that the tree re-renders once the host element exists.
-    const [mountNode, setMountNode] = useState<HTMLDivElement | null>(null);
+    // Without an explicit mount node, Fluent creates its portal host lazily on
+    // `document.body` the first time a popup is opened, which makes the whole
+    // page flash blank for a moment. The host `<div>` below lives inside the
+    // provider (so it inherits the theme classes) and every popup/picklist in
+    // the tool receives it through `PortalMountProvider` as its `mountNode`.
+    const portalMountRef = useRef<HTMLDivElement | null>(null);
 
     return (
         <ErrorBoundary>
@@ -69,7 +71,8 @@ function App() {
                 theme={hostTheme === 'dark' ? webDarkTheme : webLightTheme}
                 className={styles.root}
             >
-                <PortalMountNodeProvider value={mountNode ?? undefined}>
+                <div ref={portalMountRef} className={styles.portalHost} />
+                <PortalMountProvider mountRef={portalMountRef}>
                     <div className={styles.header}>
                         <Title3>Theme Manager</Title3>
                         <Text className={styles.subtitle}>Configure model-driven app themes with a WYSIWYG preview</Text>
@@ -83,8 +86,7 @@ function App() {
                             <ThemePanel />
                         </div>
                     </ThemeProvider>
-                    <div ref={setMountNode} className={styles.portalHost} />
-                </PortalMountNodeProvider>
+                </PortalMountProvider>
             </FluentProvider>
         </ErrorBoundary>
     );
