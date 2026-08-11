@@ -1,0 +1,8 @@
+<CustomTheme 
+    basePaletteColor="#00FF00"
+    vibrancy="0"
+    hueTorsion="-50"
+    font="'GreatVibes', cursive"
+    logoWebResource="contoso_company-logo"
+    logoTooltip="Contoso"
+/>

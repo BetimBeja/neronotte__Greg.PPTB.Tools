@@ -1,0 +1,17 @@
+<CustomTheme
+    basePaletteColor="#00FF00"
+    vibrancy="0"
+    hueTorsion="-50"
+    font="'GreatVibes', cursive"
+>  
+  <AppHeaderColors
+    background="#000000" 
+    foreground="#FFFFFF" 
+    backgroundHover="#313131" 
+    foregroundHover="#FFFFFF"
+    backgroundPressed="#494949"
+    foregroundPressed="#FFFFFF"
+    backgroundSelected="#717171" 
+    foregroundSelected="#FFFFFF"  
+  />
+</CustomTheme>
