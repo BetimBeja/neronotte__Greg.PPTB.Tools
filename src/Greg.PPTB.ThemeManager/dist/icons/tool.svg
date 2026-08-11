@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <rect x="4" y="4" width="72" height="72" rx="18" ry="18" fill="#ffffff"/>
+  <text x="40" y="40" dy="-5" text-anchor="middle" dominant-baseline="central"
+        font-family="'Consolas', 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace"
+        font-weight="700" font-size="44" fill="#000000">_n</text>
+</svg>
