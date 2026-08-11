@@ -25,6 +25,12 @@ greg-pptb-thememanager/
 │   │   ├── config/                # ConfigPanel: solution, theme file, logo, scope
 │   │   ├── theme/                 # ThemePanel: palette/typography/logo/header editors
 │   │   └── preview/               # PreviewFrame: view/form preview tabs
+│   ├── model/                     # ThemeModel, XML parse/serialize, brand ramp, contrast
+│   ├── services/
+│   │   └── themeFile.ts          # theme XML import/export via the PPTB filesystem API
+│   ├── state/
+│   │   ├── ThemeContext.tsx      # theme state provider + derived palette/preview theme
+│   │   └── themeReducer.ts       # pure reducer: edits, undo/redo, dirty tracking
 │   └── hooks/
 │       └── useToolboxAPI.ts      # connection, host-theme and event helpers
 ├── dist/                         # build output
@@ -46,6 +52,12 @@ npm run build
 
 ```bash
 npm run dev-watch
+```
+
+**Run the unit tests:**
+
+```bash
+npm test
 ```
 
 **Validate tool package:**

@@ -98,6 +98,74 @@ export function hslToRgb(h: number, s: number, l: number): { r: number; g: numbe
     };
 }
 
+/** HSV colour, the shape the Fluent v9 `ColorPicker` works with. */
+export interface Hsv {
+    h: number; // 0-360
+    s: number; // 0-1
+    v: number; // 0-1
+}
+
+const HEX_PATTERN = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+/** Whether a string is a valid 3- or 6-digit HTML hex colour (with or without `#`). */
+export function isValidHex(value: string): boolean {
+    return HEX_PATTERN.test(value.trim());
+}
+
+/** Normalises any accepted hex spelling to the canonical `#RRGGBB` uppercase form. */
+export function normalizeHex(value: string): string {
+    const { r, g, b } = hexToRgb(value.trim());
+    return rgbToHex(r, g, b);
+}
+
+export function hexToHsv(hex: string): Hsv {
+    const { r, g, b } = hexToRgb(hex);
+    const rn = r / 255;
+    const gn = g / 255;
+    const bn = b / 255;
+    const max = Math.max(rn, gn, bn);
+    const min = Math.min(rn, gn, bn);
+    const d = max - min;
+
+    let h = 0;
+    if (d !== 0) {
+        switch (max) {
+            case rn:
+                h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
+                break;
+            case gn:
+                h = ((bn - rn) / d + 2) * 60;
+                break;
+            default:
+                h = ((rn - gn) / d + 4) * 60;
+        }
+    }
+
+    return { h, s: max === 0 ? 0 : d / max, v: max };
+}
+
+export function hsvToHex(hsv: Hsv): string {
+    const h = ((hsv.h % 360) + 360) % 360;
+    const s = clamp(hsv.s, 0, 1);
+    const v = clamp(hsv.v, 0, 1);
+
+    const c = v * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = v - c;
+
+    const sector = Math.floor(h / 60) % 6;
+    const [r1, g1, b1] = [
+        [c, x, 0],
+        [x, c, 0],
+        [0, c, x],
+        [0, x, c],
+        [x, 0, c],
+        [c, 0, x],
+    ][sector];
+
+    return rgbToHex((r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255);
+}
+
 function hexToHsl(hex: string): Hsl {
     const { r, g, b } = hexToRgb(hex);
     return rgbToHsl(r, g, b);

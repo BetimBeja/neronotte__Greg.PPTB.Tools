@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PALETTE_SLOTS } from '../theme';
-import { generateBrandRamp, hexToRgb, hslToRgb, rgbToHex, rgbToHsl } from '../brandRamp';
+import { generateBrandRamp, hexToHsv, hexToRgb, hslToRgb, hsvToHex, isValidHex, normalizeHex, rgbToHex, rgbToHsl } from '../brandRamp';
 
 describe('color conversions', () => {
     it('round-trips hex -> rgb -> hex', () => {
@@ -46,5 +46,34 @@ describe('generateBrandRamp', () => {
 
         expect(luminance(ramp.darker70)).toBeLessThan(luminance(ramp.primary));
         expect(luminance(ramp.primary)).toBeLessThan(luminance(ramp.lighter80));
+    });
+});
+
+describe('hex validation', () => {
+    it('accepts 3- and 6-digit hex values with or without #', () => {
+        expect(isValidHex('#0F6CBD')).toBe(true);
+        expect(isValidHex('0f6cbd')).toBe(true);
+        expect(isValidHex('#abc')).toBe(true);
+    });
+
+    it('rejects anything else', () => {
+        expect(isValidHex('#12')).toBe(false);
+        expect(isValidHex('rebeccapurple')).toBe(false);
+        expect(isValidHex('')).toBe(false);
+    });
+
+    it('normalises to canonical #RRGGBB uppercase', () => {
+        expect(normalizeHex('  #abc ')).toBe('#AABBCC');
+        expect(normalizeHex('0f6cbd')).toBe('#0F6CBD');
+    });
+});
+
+describe('hsv conversions', () => {
+    it.each(['#000000', '#FFFFFF', '#0F6CBD', '#00FF00', '#7A3B96'])('round-trips %s through HSV', (hex) => {
+        expect(hsvToHex(hexToHsv(hex))).toBe(hex);
+    });
+
+    it('reports zero saturation for greys', () => {
+        expect(hexToHsv('#808080').s).toBe(0);
     });
 });

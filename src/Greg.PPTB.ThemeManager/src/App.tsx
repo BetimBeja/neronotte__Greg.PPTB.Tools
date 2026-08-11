@@ -4,6 +4,7 @@ import { ConfigPanel } from './components/config/ConfigPanel';
 import { ThemePanel } from './components/theme/ThemePanel';
 import { PreviewFrame } from './components/preview/PreviewFrame';
 import { useHostTheme } from './hooks/useToolboxAPI';
+import { ThemeProvider } from './state/ThemeContext';
 
 const useStyles = makeStyles({
     root: {
@@ -52,13 +53,15 @@ function App() {
                     <Title3>Theme Manager</Title3>
                     <Text className={styles.subtitle}>Configure model-driven app themes with a WYSIWYG preview</Text>
                 </div>
-                <ConfigPanel />
-                <div className={styles.body}>
-                    <div className={styles.main}>
-                        <PreviewFrame />
+                <ThemeProvider>
+                    <ConfigPanel />
+                    <div className={styles.body}>
+                        <div className={styles.main}>
+                            <PreviewFrame />
+                        </div>
+                        <ThemePanel />
                     </div>
-                    <ThemePanel />
-                </div>
+                </ThemeProvider>
             </FluentProvider>
         </ErrorBoundary>
     );
