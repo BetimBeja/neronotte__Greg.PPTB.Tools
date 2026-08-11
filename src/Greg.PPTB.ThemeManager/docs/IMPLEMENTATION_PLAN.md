@@ -427,6 +427,20 @@ PPTB via `npm run dev-watch` + Load Local Tool.
 - Wire `tokenMap` for instant repaint; add the zoom control and the "highlight themed areas"
   overlay (§2.3).
 
+**Implemented.** Notes worth recording:
+
+- The preview nests its own `FluentProvider` (plus an `IdPrefixProvider`) as decided in §2.10; the
+  tool's chrome keeps following the PPTB host theme.
+- `tokenMap` now also resolves the **app-header colours** (the platform only requires `background`;
+  the other seven are calculated from it) and the **app font**. The font is written into the
+  nested theme's `fontFamilyBase`, not only onto the wrapper element, so the Fluent controls inside
+  the preview pick it up too.
+- The brand ramp is now anchored on the **seed's own lightness**. The fixed lightness table used in
+  Phase 2 made `darker10` come out *lighter* than a dark `primary`, which painted links, hover
+  states and the primary button visibly wrong in the preview.
+- Elements the theme actually repaints carry a `data-themed` attribute, which is what the
+  "highlight themed areas" overlay outlines — it keeps the overlay honest about §2.3.
+
 ### Phase 4 — Dataverse integration (Config Panel)
 - **Solution picker (`getSolutions`) is mandatory** — the user must always choose a target solution
   before saving; there is no default-solution fallback (§2.5). Web resource picker (XML web

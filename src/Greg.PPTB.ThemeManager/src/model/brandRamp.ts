@@ -176,8 +176,21 @@ function hslToHex(hsl: Hsl): string {
     return rgbToHex(r, g, b);
 }
 
-/** Target lightness (0-100) for each slot, dark → light, with `primary` at index 7. */
-const TARGET_LIGHTNESS = [10, 20, 28, 36, 44, 52, 60, undefined, 74, 80, 85, 89, 92, 95, 97, 99] as const;
+/**
+ * How far each slot sits along its half of the ramp, dark → light, with
+ * `primary` (index 7) as the anchor: the darker slots are spread between the
+ * darkest end and the primary's own lightness, the lighter slots between the
+ * primary and the lightest end. Anchoring on the seed keeps the ramp
+ * monotonic for any seed — a fixed lightness table makes `darker10` end up
+ * *lighter* than a dark `primary`, which then paints links and hover states
+ * wrong in the preview.
+ */
+const DARKER_STOPS = [0.12, 0.25, 0.38, 0.5, 0.63, 0.76, 0.88] as const;
+const LIGHTER_STOPS = [0.14, 0.34, 0.52, 0.66, 0.76, 0.86, 0.93, 1] as const;
+
+/** Lightness (0-100) of the extreme ends of the ramp. */
+const DARKEST_LIGHTNESS = 6;
+const LIGHTEST_LIGHTNESS = 99;
 
 export interface BrandRampOptions {
     basePaletteColor: string;
@@ -202,7 +215,13 @@ export function generateBrandRamp(options: BrandRampOptions): Record<PaletteSlot
     const seedHsl = hexToHsl(basePaletteColor);
 
     const vibrancyFactor = clamp(vibrancy, -100, 100) / 100;
-    const hueShiftMax = clamp(hueTorsion, -100, 100) / 100 * 30; // up to +/-30 degrees at the lightest slot
+    const hueShiftMax = (clamp(hueTorsion, -100, 100) / 100) * 30; // up to +/-30 degrees at the lightest slot
+
+    // The ramp is anchored on the seed's own lightness; the two ends move with
+    // it so both halves keep some room even for a near-black or near-white seed.
+    const primaryLightness = clamp(seedHsl.l, 0, 100);
+    const darkestLightness = Math.min(DARKEST_LIGHTNESS, primaryLightness * 0.5);
+    const lightestLightness = Math.max(LIGHTEST_LIGHTNESS, primaryLightness + (100 - primaryLightness) * 0.5);
 
     const result = {} as Record<PaletteSlot, string>;
 
@@ -212,12 +231,15 @@ export function generateBrandRamp(options: BrandRampOptions): Record<PaletteSlot
             return;
         }
 
-        const targetLightness = TARGET_LIGHTNESS[index] as number;
         // How far this slot sits from the primary slot, 0 (adjacent) .. 1 (extreme).
-        const distanceFromPrimary = Math.abs(index - 7) / 7;
+        const distanceFromPrimary = Math.abs(index - 7) / 8;
+
+        const isLighterSlot = index > 7;
+        const targetLightness = isLighterSlot
+            ? primaryLightness + (lightestLightness - primaryLightness) * LIGHTER_STOPS[index - 8]
+            : darkestLightness + (primaryLightness - darkestLightness) * DARKER_STOPS[index];
 
         // Vibrancy mutes/boosts saturation, mostly on the lighter slots.
-        const isLighterSlot = index > 7;
         const saturationAdjust = isLighterSlot ? vibrancyFactor * 40 * distanceFromPrimary : 0;
         const saturation = clamp(seedHsl.s + saturationAdjust, 0, 100);
 

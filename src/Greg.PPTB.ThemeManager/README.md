@@ -24,7 +24,8 @@ greg-pptb-thememanager/
 │   │   ├── ErrorBoundary.tsx     # top-level error boundary
 │   │   ├── config/                # ConfigPanel: solution, theme file, logo, scope
 │   │   ├── theme/                 # ThemePanel: palette/typography/logo/header editors
-│   │   └── preview/               # PreviewFrame: view/form preview tabs
+│   │   └── preview/               # PreviewFrame: app shell replica, view/form preview tabs
+│   │       └── shell/             # header, navigation and command bar shared by both tabs
 │   ├── model/                     # ThemeModel, XML parse/serialize, brand ramp, contrast
 │   ├── services/
 │   │   └── themeFile.ts          # theme XML import/export via the PPTB filesystem API

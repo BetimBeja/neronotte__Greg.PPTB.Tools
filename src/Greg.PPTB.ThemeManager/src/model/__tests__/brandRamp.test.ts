@@ -47,6 +47,19 @@ describe('generateBrandRamp', () => {
         expect(luminance(ramp.darker70)).toBeLessThan(luminance(ramp.primary));
         expect(luminance(ramp.primary)).toBeLessThan(luminance(ramp.lighter80));
     });
+
+    it.each(['#0F6CBD', '#102030', '#F2C744', '#7A3B96'])('produces a ramp that gets lighter slot by slot for %s', (seed) => {
+        const ramp = generateBrandRamp({ basePaletteColor: seed, lockPrimary: false, vibrancy: 0, hueTorsion: 0 });
+        const luminance = (hex: string) => {
+            const { r, g, b } = hexToRgb(hex);
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+
+        const values = PALETTE_SLOTS.map((slot) => luminance(ramp[slot]));
+        for (let index = 1; index < values.length; index += 1) {
+            expect(values[index]).toBeGreaterThan(values[index - 1]);
+        }
+    });
 });
 
 describe('hex validation', () => {
