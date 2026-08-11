@@ -160,7 +160,13 @@ export function ColorField({ label, value, onChange, placeholder, onReset, contr
                         setText(data.value);
                         commitText(data.value);
                     }}
-                    onBlur={() => setText(value ?? '')}
+                    onBlur={() => {
+                        // Only discard the typed text when it isn't a usable colour;
+                        // a valid entry has already been committed and normalised.
+                        if (invalid) {
+                            setText(value ?? '');
+                        }
+                    }}
                 />
                 {onReset && (
                     <Tooltip content={`Reset ${label}`} relationship="label">
