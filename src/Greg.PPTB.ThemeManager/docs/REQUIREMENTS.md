@@ -28,9 +28,10 @@ The other must show:
 
 The view and form must not be functioning, the goal is just to show the look&feel of the app with the theme applied.
 
-With a toggle in the **Config Panel**, allow also the user to select if he wants the classical look, or the modern refreshed look, as described here:
-
-- https://learn.microsoft.com/en-us/power-apps/user/modern-fluent-design
+The main panel only ever shows the modern (Wave 1) look. The classic-look toggle has been dropped:
+Microsoft mandates the modern look from the 2026 Wave 1 release, classic mode ignores custom themes
+entirely, and simulating it would not reflect the theme being authored (see
+[`IMPLEMENTATION_PLAN.md` §2.8](./IMPLEMENTATION_PLAN.md)).
 
 ## Theme Panel
 
@@ -42,12 +43,20 @@ In this panel the user must be able to configure all the characteristics of a cu
 Colors must be selectable via color picker or by inserting an HTML color value.
 Any change on the theme defined in the theme panel must reflect in the main panel immediately (no manual refresh).
 
+For the logo, the user must be able to either **upload a new webresource** (from a local image
+file) or **peek an existing webresource** already present in the environment.
+
 ## Config Panel
 
 In this panel the user can see/pick:
 
 - a theme web resource file
-- the name of the webresource that contains (or will contain) the logo image
+- the name of the webresource that contains (or will contain) the logo image, either by uploading
+  a new image or by picking an existing webresource
+- the **solution** the theme (and, when created, the logo) belongs to — the solution picker is
+  **mandatory**: there is no default-solution fallback, the user must always choose a solution
+  explicitly before saving
 - whether to configure the theme for the whole environment or for a specific app
-- a toggle that allows the user to peek if he wants, in the main panel, to show the classical look, or the modern refreshed look, as described here:
-  - https://learn.microsoft.com/en-us/power-apps/user/modern-fluent-design
+
+An active Dataverse connection is **required** to use the tool: it does not support an
+offline/no-connection mode.

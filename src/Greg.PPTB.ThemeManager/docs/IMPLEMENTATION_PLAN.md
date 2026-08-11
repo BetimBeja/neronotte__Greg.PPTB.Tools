@@ -4,12 +4,13 @@ Companion document to [`REQUIREMENTS.md`](./REQUIREMENTS.md).
 It records (1) the open questions and risks found while analysing the requirements and
 (2) a phased plan to build the tool.
 
-**Revision 2** — the requirements' Microsoft Learn links have now been read in full and the
-findings folded in. See [`THEME_XML_REFERENCE.md`](./THEME_XML_REFERENCE.md) for the transcribed
-schema and [`samples/`](./samples/) for the verbatim example files.
+**Revision 3** — the tool owner has answered the 6 open product questions from §7 (Revision 2);
+the plan and `REQUIREMENTS.md` have been updated accordingly. See
+[`THEME_XML_REFERENCE.md`](./THEME_XML_REFERENCE.md) for the transcribed schema and
+[`samples/`](./samples/) for the verbatim example files.
 
-Status: **draft for review**. Sections marked 🔴 need a decision from the tool owner before
-the corresponding phase starts.
+Status: **owner decisions received**. Remaining 🟡 items need runtime verification (Phase 0
+spikes), not further product decisions.
 
 ## Source policy
 
@@ -56,7 +57,7 @@ Vite/HTML/bundling setup should be re-engineered.
 
 ## 2. Requirements analysis — issues & topics to discuss
 
-### 2.1 🔴 "EXACT REPLICA" of the model-driven app UI is not an achievable acceptance criterion
+### 2.1 ✅ RESOLVED — "high-fidelity approximation", Wave 1 target
 
 `REQUIREMENTS.md` §Main Panel asks for an *exact replica* of the MDA shell. Problems:
 
@@ -73,8 +74,8 @@ Vite/HTML/bundling setup should be re-engineered.
 Fluent 2 primitives, faithful enough that a theme change reads the same way it will in the real
 app"*. Acceptance = visual comparison against `sample01.png`, reviewed by the tool owner.
 
-**Also 🔴 decide:** does the preview target the Wave 1 shell (as in `sample01.png`) or the Wave 2
-preview header/navigation refresh? Recommendation: Wave 1 for v1, since Wave 2 is opt-in preview.
+**Owner decision (received):** accepted. The preview targets the **Wave 1 shell** (as in
+`sample01.png`) for v1; the Wave 2 header/navigation refresh remains a stretch item (§5, Phase 6).
 
 ### 2.2 ✅ RESOLVED — the theme XML schema is now documented
 
@@ -114,7 +115,7 @@ ask for, only lookups, hyperlinks, active tab indicators and the font actually c
 theme. The form tab is still worth building (font + tab indicators + lookup styling are visible),
 but the effort should be weighted towards the header and the view/grid tab.
 
-### 2.4 🔴 Environment vs. app scope — mechanism identified, API path UNVERIFIED
+### 2.4 🟡 Environment vs. app scope — mechanism identified, API path still to be verified at runtime; deep-link fallback APPROVED
 
 Microsoft documents this only as a **maker UI flow** through solutions:
 
@@ -146,12 +147,13 @@ tool must detect and warn about this combination.
 - Record the verified findings in this document, with the caveat that they are environment-observed
   and not contractual.
 
-**Fallback if the write path is unsupported (must be agreed up front, it changes the value
-proposition):** the tool still creates/updates the theme web resource and the logo, shows the exact
-unique name to paste, and deep-links to the solution in the maker portal via
-`toolboxAPI.utils.openInConnectionBrowser` so the user completes the setting assignment there.
+**Owner decision (received): the maker-portal deep-link fallback is acceptable.** If the setting
+value can't be written through the API, the tool still creates/updates the theme web resource and
+the logo, shows the exact unique name to paste, and deep-links to the solution in the maker portal
+via `toolboxAPI.utils.openInConnectionBrowser` so the user completes the setting assignment there.
 
 ### 2.5 Web resource writes — fully documented, with one PPTB-specific constraint
+
 
 Confirmed from Microsoft docs:
 
@@ -173,8 +175,13 @@ Confirmed from Microsoft docs:
 argument, so `MSCRM.SolutionUniqueName` probably **cannot** be sent. Phase 0 must verify this and,
 if confirmed, use the documented alternative: create the web resource, then call the
 `AddSolutionComponent` action via `dataverseAPI.execute` with **ComponentType 61 (Web Resource)**
-(value confirmed in the SolutionComponent table reference). If neither works, the web resource
-lands in the default solution — which must be stated plainly in the UI, not silently accepted.
+(value confirmed in the SolutionComponent table reference).
+
+**Owner decision (received): the solution picker is in scope and mandatory — there is no
+default-solution fallback.** The user must always explicitly pick the target solution before any
+web resource is created or updated; if neither `MSCRM.SolutionUniqueName` nor
+`AddSolutionComponent` can be made to work, saving must be **blocked** with a clear error rather
+than silently letting the web resource land in the default solution.
 
 Also: block updates to **managed** web resources (check `ismanaged`) with a clear message, and
 always warn before publishing that it affects the whole environment.
@@ -187,19 +194,19 @@ attributes/nodes untouched, show a non-blocking banner listing what the UI can't
 show an old-vs-new XML diff before saving. This matters more than usual because the docs give no
 guarantee that the attribute list is closed or final.
 
-### 2.7 ✅ MOSTLY RESOLVED — logo web resource
+### 2.7 ✅ RESOLVED — logo web resource
 
 Documented: referenced by **logical name** (prefixed), recommended size **156 × 48 px**, and
 *"logos that are too large don't display"* (no hard limit stated). The "only SVG icons are
 supported" limitation in the modern-look article applies to **sitemap/navigation icons**, not the
 header logo — don't over-apply it.
 
-Still 🔴 **a product decision**: does the tool *upload* an image (via
+**Owner decision (received): support both** — upload a new image (via
 `toolboxAPI.fileSystem.selectPath` + `readBinary` → base64 → `webresourceset` with type 5/6/11) or
-only *reference* an existing one? Recommendation: support both, validate dimensions against
-156 × 48 and warn on mismatch, and render the logo plus its `logoTooltip` in the preview header.
+pick/peek an existing web resource. Validate dimensions against 156 × 48 and warn on mismatch, and
+render the logo plus its `logoTooltip` in the preview header.
 
-### 2.8 🔴 The classic-look toggle is very likely obsolete
+### 2.8 ✅ RESOLVED — the classic-look toggle is dropped
 
 Requirement §31 and §52 ask for a classic-vs-modern toggle. Microsoft now states:
 
@@ -210,13 +217,11 @@ and the app-designer setting **"New look for model-driven apps"** is *"hidden an
 2026 Wave 1 release."* Furthermore, under the modern look **classic theming is not honoured at
 all**, so a classic preview couldn't even reflect the theme being authored.
 
-**Strong recommendation: drop the classic-look toggle from v1.** Building a second full shell mock
-for a look users can no longer select, and which ignores the theme anyway, is pure cost. If a
-"before/after" comparison is the underlying need, satisfy it with an *unthemed modern shell*
-toggle instead — same value, a fraction of the work, and it stays correct.
-
-If a look toggle survives at all, the more useful axis is **Wave 1 vs Wave 2 (header & navigation
-refresh, preview)**, since that is a choice makers can actually still make per app.
+**Owner decision (received): the classic-look toggle is dropped from v1**, both in the main panel
+and the Config Panel. Building a second full shell mock for a look users can no longer select, and
+which ignores the theme anyway, is pure cost. `REQUIREMENTS.md` §Main Panel/§Config Panel has been
+updated to remove it. An unthemed-vs-themed comparison remains an optional stretch idea (§5, Phase 6)
+but is not required.
 
 ### 2.9 Layout: theme panel + config panel + preview in a PPTB tool tab
 
@@ -250,15 +255,14 @@ requirements"*.
 and inline warnings for all four `AppHeaderColors` state pairs, and a warning banner whenever
 `lockPrimary="true"` is selected.
 
-### 2.12 Non-functional gaps in the requirements
-
-Not mentioned in `REQUIREMENTS.md`, need a decision:
+### 2.12 ✅ RESOLVED — Non-functional gaps in the requirements
 
 - **Unsaved-changes protection** when switching theme file / connection / closing the tool.
 - **Undo/redo** for theme edits — recommended, at minimum "reset to loaded values".
 - **Presets** and **import/export** of the XML to/from disk via `toolboxAPI.fileSystem`.
-- **Working without a connection**: preview and theme editing need no Dataverse; the tool should
-  degrade to edit-and-export.
+- **Owner decision (received): no offline mode.** The tool requires an active Dataverse connection
+  at all times — it does **not** need to work, or degrade to edit-and-export, with no connection.
+  `REQUIREMENTS.md` §Config Panel states this explicitly.
 - **Persisted preferences** via `toolboxAPI.settings` with namespaced keys (`ui.previewTab`,
   `last.solutionId`, …) — never transient UI state.
 - **Font handling**: `font` is a raw CSS font-family string and *"the font that the custom theme
@@ -390,11 +394,13 @@ PPTB via `npm run dev-watch` + Load Local Tool.
 - Resolve §2.4: discover at runtime whether the settings tables are readable/writable through
   `dataverseAPI`, and resolve the two setting definitions by display name. Record findings here.
 - Resolve §2.5: can `dataverseAPI` send `MSCRM.SolutionUniqueName`? If not, validate the
-  `AddSolutionComponent` (ComponentType 61) route.
+  `AddSolutionComponent` (ComponentType 61) route — this must work, since there is no
+  default-solution fallback (§2.5, owner decision).
 - Verify Fluent `ColorPicker` stability in the pinned version (§4.3) and decide the ramp-generator
   approach (§4.2).
 - Add one **real exported theme web resource** to `docs/samples/` to close the residual §2.2 gap.
-- Get owner decisions on §2.1 (fidelity + Wave 1 vs 2), §2.7 (logo upload) and §2.8 (drop classic).
+- ~~Get owner decisions on §2.1, §2.7 and §2.8~~ — **done**, see §2.1/§2.4/§2.5/§2.7/§2.8/§2.12
+  and the record in §7.
 
 ### Phase 1 — Shell & scaffolding cleanup
 - Remove the demo components; fix the `index.html` title; rewrite `README.md` for the real tool.
@@ -422,16 +428,18 @@ PPTB via `npm run dev-watch` + Load Local Tool.
   overlay (§2.3).
 
 ### Phase 4 — Dataverse integration (Config Panel)
-- Solution picker (`getSolutions`) and web resource picker (XML web resources, `webresourcetype` 4,
-  managed detection).
+- **Solution picker (`getSolutions`) is mandatory** — the user must always choose a target solution
+  before saving; there is no default-solution fallback (§2.5). Web resource picker (XML web
+  resources, `webresourcetype` 4, managed detection).
 - Load an existing theme; create a new one; save with a pre-save XML diff; publish (`PublishXml`
   targeted, or `publishCustomizations()`), with an explicit confirmation that publishing affects
   the whole environment.
 - Scope assignment (environment vs app) per the Phase 0 findings, with the documented deep-link
-  fallback; warn when both **Custom theme definition** and **Override app header color** are set.
-- Logo: browse/upload the image web resource (types 5/6/11), validate against 156 × 48, render it
-  in the preview.
-- Unsaved-changes guard; graceful no-connection mode.
+  fallback (§2.4, approved); warn when both **Custom theme definition** and **Override app header
+  color** are set.
+- Logo: browse an existing image web resource **or** upload a new one (types 5/6/11), validate
+  against 156 × 48, render it in the preview.
+- Unsaved-changes guard. No offline mode: the tool requires an active connection (§2.12).
 
 ### Phase 5 — Polish & release
 - `toolboxAPI.settings` persistence, keyboard accessibility pass on the tool's own UI,
@@ -439,7 +447,7 @@ PPTB via `npm run dev-watch` + Load Local Tool.
   `pptb-validate` clean, version bump + publish checklist.
 
 ### Phase 6 — Stretch
-- Unthemed-vs-themed side-by-side comparison (replaces the classic toggle, §2.8), Wave 2
+- Optional unthemed-vs-themed side-by-side comparison, Wave 2
   header/navigation preview variant, per-token "where is this used?" hints.
 
 ---
@@ -448,26 +456,34 @@ PPTB via `npm run dev-watch` + Load Local Tool.
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| Settings tables/columns are undocumented by Microsoft and may change | Scope assignment breaks | Runtime discovery, never hardcode ids; documented maker-portal fallback |
-| `dataverseAPI` can't send `MSCRM.SolutionUniqueName` | Web resources land in the default solution | Phase 0 spike; `AddSolutionComponent` (type 61) alternative; state the behaviour in the UI |
+| Settings tables/columns are undocumented by Microsoft and may change | Scope assignment breaks | Runtime discovery, never hardcode ids; documented maker-portal fallback (approved) |
+| `dataverseAPI` can't send `MSCRM.SolutionUniqueName` | `AddSolutionComponent` route must work, since there is no default-solution fallback | Phase 0 spike; if neither route works, block save with a clear error (§2.5) |
 | Ramp generation doesn't match the platform exactly | Preview colours drift from reality | Label the ramp as an approximation; expose the 16 slot overrides for exact control |
 | MDA shell keeps changing (Wave 2, future waves) | Preview goes stale | Reframe as approximation (§2.1); revisit each release wave |
 | Publishing affects the whole environment | User impact | Explicit confirmation dialog + warning copy |
 | Round-trip loses unknown attributes | Data loss in customer themes | Preserve unknown nodes + pre-save diff |
 | Custom `font` not installed locally | WYSIWYG silently lies | Detect and warn; curated web-safe list |
 | Layout too cramped in a PPTB tab | Unusable | Collapsible panels + zoom, min-width target |
+| No offline mode | Tool unusable without a connection | Accepted trade-off (§2.12, owner decision) |
 
 ---
 
-## 7. Open questions for the tool owner
+## 7. Decisions received from the tool owner
 
-1. Do you accept "high-fidelity approximation" instead of "exact replica", and Wave 1 as the
-   preview target (§2.1)?
-2. Can the classic-look toggle be dropped, given the New Look is mandatory from 2026 Wave 1 and
-   classic ignores the theme entirely — replaced by a themed/unthemed comparison (§2.8)?
-3. Should the tool upload logo images, or only reference existing web resources (§2.7)?
-4. Is the solution picker in scope for v1, and is "falls back to the default solution" acceptable
-   if PPTB can't send the solution header (§2.5)?
-5. Is the maker-portal deep-link fallback acceptable if the setting value can't be written through
-   the API (§2.4)?
-6. Must the tool be usable with no active connection (§2.12)?
+The six open questions below have been answered by the tool owner; the plan and
+`REQUIREMENTS.md` have been updated accordingly (see the "Owner decision (received)" notes in
+§2.1–§2.12).
+
+1. **Accept** "high-fidelity approximation" instead of "exact replica", with **Wave 1** as the
+   preview target (§2.1).
+2. **Drop the classic-look toggle** entirely — no themed/unthemed replacement is required for v1
+   (§2.8).
+3. The tool **must support both**: uploading a new logo web resource, or picking/peeking an
+   existing one (§2.7).
+4. The **solution picker is in scope and mandatory**; there is **no** default-solution fallback —
+   saving must be blocked, not silently redirected to the default solution, if the target solution
+   can't be honoured (§2.5).
+5. **Yes** — the maker-portal deep-link fallback is acceptable for scope assignment when the API
+   path is unavailable (§2.4).
+6. **No** — the tool must **not** be usable with no active connection; an active Dataverse
+   connection is required at all times (§2.12).
