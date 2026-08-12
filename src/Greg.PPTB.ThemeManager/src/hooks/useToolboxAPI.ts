@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 
-export type LogEntry = {
-  timestamp: Date;
-  message: string;
-  type: "info" | "success" | "warning" | "error";
-};
-
 export function useConnection() {
   const [connection, setConnection] =
     useState<ToolBoxAPI.DataverseConnection | null>(null);
@@ -44,29 +38,33 @@ export function useToolboxEvents(onEvent: (event: string, data: any) => void) {
   }, [onEvent]);
 }
 
-export function useEventLog() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+/**
+ * Tracks the current PPTB host UI theme (light/dark) so the tool's own chrome
+ * (not the previewed model-driven app theme) can follow it.
+ */
+export function useHostTheme() {
+  const [hostTheme, setHostTheme] = useState<"light" | "dark">("light");
 
-  // Use useCallback without dependencies since we're using the functional update form of setState
-  // This ensures the functions are stable across renders and won't cause infinite loops
-  const addLog = useCallback(
-    (message: string, type: LogEntry["type"] = "info") => {
-      setLogs((prev) => [
-        {
-          timestamp: new Date(),
-          message,
-          type,
-        },
-        ...prev.slice(0, 49), // Keep last 50 entries
-      ]);
-      console.log(`[${type.toUpperCase()}] ${message}`);
-    },
-    []
-  ); // Empty deps is safe because we use functional setState
+  useEffect(() => {
+    let cancelled = false;
 
-  const clearLogs = useCallback(() => {
-    setLogs([]);
-  }, []); // Empty deps is safe because we use functional setState
+    const getTheme = async () => {
+      try {
+        const currentTheme = await window.toolboxAPI.utils.getCurrentTheme();
+        if (!cancelled) {
+          setHostTheme(currentTheme === "dark" ? "dark" : "light");
+        }
+      } catch (error) {
+        console.error("Error getting current theme:", error);
+      }
+    };
 
-  return { logs, addLog, clearLogs };
+    getTheme();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return hostTheme;
 }
