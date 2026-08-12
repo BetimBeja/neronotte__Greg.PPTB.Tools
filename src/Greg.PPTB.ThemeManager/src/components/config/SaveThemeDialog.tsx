@@ -115,7 +115,15 @@ export function SaveThemeDialog({ open, onDismiss, onSaved, mountNode }: SaveThe
         setBusy(true);
         setError(undefined);
         try {
-            const content = themeXmlToContent(xml);
+            let xmlToSave: string;
+            try {
+                xmlToSave = serializeThemeModel(model);
+            } catch (serializeError) {
+                setError(message(serializeError));
+                return;
+            }
+
+            const content = themeXmlToContent(xmlToSave);
             let resource: WebResourceSummary;
 
             if (openTheme) {
@@ -135,7 +143,7 @@ export function SaveThemeDialog({ open, onDismiss, onSaved, mountNode }: SaveThe
                 await publishWebResource(resource.id);
             }
 
-            onSaved(resource, xml);
+            onSaved(resource, xmlToSave);
         } catch (saveError) {
             setError(message(saveError));
         } finally {
