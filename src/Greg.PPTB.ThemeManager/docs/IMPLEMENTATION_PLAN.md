@@ -4,13 +4,16 @@ Companion document to [`REQUIREMENTS.md`](./REQUIREMENTS.md).
 It records (1) the open questions and risks found while analysing the requirements and
 (2) a phased plan to build the tool.
 
-**Revision 3** — the tool owner has answered the 6 open product questions from §7 (Revision 2);
-the plan and `REQUIREMENTS.md` have been updated accordingly. See
+**Revision 4** — a new requirement was added by the tool owner: derive the theme colours
+automatically from a website screenshot or URL. It is analysed in §2.14, reflected in §3, §4.5,
+§4.6 and delivered as **Phase 6** (§5). Revision 3 answered the 6 open product questions from §7
+(Revision 2); the plan and `REQUIREMENTS.md` were updated accordingly. See
 [`THEME_XML_REFERENCE.md`](./THEME_XML_REFERENCE.md) for the transcribed schema and
 [`samples/`](./samples/) for the verbatim example files.
 
 Status: **owner decisions received**. Remaining 🟡 items need runtime verification (Phase 0
-spikes), not further product decisions.
+spikes), not further product decisions — except §2.14, which is a newly added, not-yet-built
+requirement.
 
 ## Source policy
 
@@ -75,7 +78,7 @@ Fluent 2 primitives, faithful enough that a theme change reads the same way it w
 app"*. Acceptance = visual comparison against `sample01.png`, reviewed by the tool owner.
 
 **Owner decision (received):** accepted. The preview targets the **Wave 1 shell** (as in
-`sample01.png`) for v1; the Wave 2 header/navigation refresh remains a stretch item (§5, Phase 6).
+`sample01.png`) for v1; the Wave 2 header/navigation refresh remains a stretch item (§5, Phase 7).
 
 ### 2.2 ✅ RESOLVED — the theme XML schema is now documented
 
@@ -220,7 +223,7 @@ all**, so a classic preview couldn't even reflect the theme being authored.
 **Owner decision (received): the classic-look toggle is dropped from v1**, both in the main panel
 and the Config Panel. Building a second full shell mock for a look users can no longer select, and
 which ignores the theme anyway, is pure cost. `REQUIREMENTS.md` §Main Panel/§Config Panel has been
-updated to remove it. An unthemed-vs-themed comparison remains an optional stretch idea (§5, Phase 6)
+updated to remove it. An unthemed-vs-themed comparison remains an optional stretch idea (§5, Phase 7)
 but is not required.
 
 ### 2.9 Layout: theme panel + config panel + preview in a PPTB tool tab
@@ -278,6 +281,79 @@ theming, per-user themes, dark mode (*"switching themes or enabling dark mode is
 this time"*), chart colour customisation (`CustomColorOverride`), and any real data in the mock —
 the preview is 100 % static sample data, per requirement §29.
 
+### 2.14 🟡 NEW — Color extraction from a website (screenshot or URL)
+
+`REQUIREMENTS.md` §Color Extraction From a Website asks for a "brand-from-the-web" flow: give the
+tool a screenshot (or a site address) and get a proposed theme back. Analysis:
+
+**The image route is fully feasible today, with no new dependency and no network access.**
+`toolboxAPI.fileSystem.selectPath` + `readBinary` already power the logo upload (§2.7); the same
+bytes can be decoded into a `<canvas>` / `OffscreenCanvas` and read back with `getImageData`.
+Clipboard paste (`paste` event / `navigator.clipboard.read`) and drag & drop give two more free
+entry points inside the renderer. A `data:` URI source keeps the canvas untainted, so
+`getImageData` is allowed and no CSP exception is needed (§4.4 stays true).
+
+**The URL route is the hard part: PPTB exposes no screenshot capability.** Confirmed by reading
+`@pptb/types`: `toolboxAPI` has `fileSystem`, `settings`, `events`, `terminal`, `invocation` and
+`utils` (`showNotification`, `copyToClipboard`, `getCurrentTheme`, `openInConnectionBrowser`) —
+there is **no** headless-browser, page-capture or generic HTTP API. The options are:
+
+| Option | Verdict |
+| --- | --- |
+| Render the site in an `<iframe>` and capture it | ❌ Impossible — `X-Frame-Options` / `frame-ancestors` block most sites, and cross-origin frames cannot be read back into a canvas anyway. |
+| `fetch()` the HTML/CSS and mine the declared colours | ❌ Blocked by CORS and by PPTB's `connect-src` CSP; would also need a full CSS cascade evaluation to know which colours are actually *visible*. |
+| Third-party screenshot API (e.g. a render service) | 🟡 Works, but needs `cspExceptions`, sends the user's URL (possibly an internal one) to a third party, and adds an API key/quota. **Only acceptable as an explicit, opt-in, off-by-default provider** (`REQUIREMENTS.md`: no third-party call without explicit opt-in). |
+| `toolboxAPI.terminal` driving a locally installed browser in headless screenshot mode | 🟡 Possible (Edge/Chrome `--headless --screenshot`), but depends on a browser binary being present at a guessable path and on shell quoting. Phase 0-style spike, never the primary path. |
+| **Assisted capture**: `utils.openInConnectionBrowser(url)` → user screenshots the page → pastes/drops it back into the tool | ✅ Zero dependencies, zero data leaving the machine, works everywhere. |
+
+**Decision for v1: the URL field is always accepted, but it is resolved through the assisted
+capture flow** (open + paste back), with the automatic providers (headless-browser spike, opt-in
+screenshot service) kept behind a feature switch as Phase 7 stretch items. The UI must never
+present the URL box as if a screenshot were guaranteed — it explains the two steps up front.
+
+**Extraction algorithm (pure, testable, no dependency):**
+
+1. Decode → downscale to a bounded working size (~200 px on the longest edge, `imageSmoothing`
+   on) so extraction is O(constant) regardless of the screenshot size.
+2. Optional crop: only the pixels inside the user-selected region are considered. A "header only"
+   shortcut pre-selects the top ~15 % of the image, which is where brand colour usually lives.
+3. Filter noise: drop fully/partially transparent pixels, near-white and near-black pixels, and
+   very low-saturation pixels (configurable "ignore greys" toggle, on by default) — otherwise
+   every site returns white + grey.
+4. Quantise the remaining pixels in a **perceptually uniform space** (convert to OKLab/CIELAB;
+   `brandRamp.ts` already has the RGB/HSL conversions to build on) with median-cut or a small
+   fixed-iteration k-means. Deterministic seeding — the same image must always give the same
+   palette, because the unit tests depend on it.
+5. Rank clusters by weight (pixel share) × saturation bonus, merge clusters closer than a ΔE
+   threshold, return the top N (default 6) candidates as HEX + coverage %.
+
+**Role mapping (the part that makes it a *theme*, not a palette):**
+
+- `basePaletteColor` ← the most saturated high-coverage candidate; the 16 slots then come from the
+  existing `brandRamp.ts` generator, so nothing new is invented downstream.
+- `AppHeaderColors.background` ← the dominant colour of the top band of the screenshot.
+- `AppHeaderColors.foreground` ← chosen between the candidates (and, failing that, black/white) by
+  running the existing `contrast.ts` against the picked background; hover/pressed/selected states
+  are derived as they already are in `tokenMap.ts`.
+- Palette slot overrides are **not** auto-filled by default — the ramp is the documented mechanism,
+  and force-fitting screenshot colours into 16 slots produces incoherent ramps. Offer it as an
+  explicit "also override the closest slots" checkbox.
+- Every suggestion is editable before it is applied, and each proposed pair shows its live contrast
+  ratio with the §2.11 warnings.
+
+**Integration constraints:**
+
+- Applying the result must be **one** reducer action (a `replace`-style patch), so the existing
+  undo/redo (§2.12) reverts the whole extraction in a single step.
+- The dialog is a Fluent v9 portal surface → it must be re-wrapped in the provider per §2.10 if it
+  shows any themed preview.
+- The imported screenshot is working data only: it is never uploaded to Dataverse and never stored
+  in `toolboxAPI.settings` (it can be several MB); only the extracted colours may be remembered.
+- Large images must be guarded (reject > ~20 MB / > 8000 px, downscale before analysis) so a 4K
+  screenshot cannot freeze the renderer; run the analysis off the paint path (async chunks or a
+  worker) and show progress.
+
+
 ---
 
 ## 3. Target architecture
@@ -293,6 +369,8 @@ src/
     brandRamp.ts               # basePaletteColor + vibrancy + hueTorsion -> 16 slots
     contrast.ts                # WCAG ratio helpers for the header state pairs
     defaults.ts                # documented defaults + starter presets
+    colorExtraction.ts         # ImageData -> ranked colour candidates (quantiser, §2.14)
+    colorRoles.ts              # candidates -> proposed ThemeModel patch (contrast-checked, §2.14)
   state/
     ThemeContext.tsx           # theme state + undo/redo + dirty tracking
     ConfigContext.tsx          # connection, solution, web resource, scope
@@ -300,9 +378,12 @@ src/
     webResources.ts            # list / read / create / update / publish (dataverseAPI)
     themeScope.ts              # environment vs app assignment (+ deep-link fallback)
     logo.ts                    # logo web resource read/upload
+    imageImport.ts             # file / paste / drag&drop -> decoded ImageData (§2.14)
+    siteCapture.ts             # URL validation + assisted-capture flow (§2.14)
   components/
     config/                    # ConfigPanel: solution, theme file, logo, scope
     theme/                     # ThemePanel: grouped editors, color picker, contrast
+      ColorFromWebDialog.tsx # extraction wizard: source -> image -> palette -> roles (§2.14)
     preview/
       PreviewFrame.tsx         # nested FluentProvider + zoom + tab switch
       shell/                   # Header, NavBar, CommandBar (shared by both tabs)
@@ -382,6 +463,33 @@ round-trip against every file in `docs/samples/` (including unknown-attribute pr
 root-element shapes, colour parsing/validation, brand-ramp generation, and contrast calculation.
 UI/preview correctness stays manual (visual review against `sample01.png`). Keep `tsc` and
 `pptb-validate` in the loop.
+
+Colour extraction (§2.14) is tested the same way: `colorExtraction.ts` and `colorRoles.ts` take a
+plain `{ width, height, data: Uint8ClampedArray }`, so tests build synthetic images in memory (flat
+blocks, a "header band + white body" layout, an anti-aliased edge, a fully transparent image) and
+assert the ranked candidates and the proposed patch. The quantiser must be **deterministic** for
+this to hold. Decoding, clipboard and drag & drop stay in `services/` and are exercised manually.
+
+### 4.6 Extracting colours from an image (§2.14)
+
+No new dependency: decoding is `Image`/`createImageBitmap` from a `data:` URI (the same base64 the
+logo path already produces), sampling is `canvas.getImageData`, and the quantiser is our own code
+sitting next to `brandRamp.ts`, whose colour-space helpers it reuses. Rejected alternatives:
+`color-thief`/`vibrant.js` (extra bundle weight and a non-Microsoft runtime dependency for ~150
+lines of maths), and any server-side extraction.
+
+Design points that matter:
+
+- Work on a **bounded downscaled copy** (~200 px longest edge) — analysis cost must not depend on
+  the screenshot's resolution.
+- Quantise in a perceptually uniform space, not raw RGB, or the candidates cluster badly on
+  gradients and photos.
+- Keep the *whole* pipeline pure and synchronous over an `ImageData`-shaped input; anything async
+  (decoding, file/clipboard access) belongs to `services/imageImport.ts`.
+- The URL box lives in the same wizard step as the file/paste inputs, but it is wired to
+  `services/siteCapture.ts`, which validates the URL (`http:`/`https:` only — the same restriction
+  `openInConnectionBrowser` enforces — no `file:`/`javascript:`, no credentials in the URL) and then
+  runs the assisted-capture flow (§2.14). Automatic providers stay behind an off-by-default switch.
 
 ---
 
@@ -487,9 +595,50 @@ PPTB via `npm run dev-watch` + Load Local Tool.
   notification/error-message review against PPTB conventions, README with screenshots,
   `pptb-validate` clean, version bump + publish checklist.
 
-### Phase 6 — Stretch
+### Phase 6 — Colour extraction from a website (§2.14)
+
+Self-contained feature, additive to everything above. Build it in this order:
+
+1. **`model/colorExtraction.ts` + tests (no UI).** `extractPalette(imageData, options)` →
+   downscale-aware sampling, transparency/near-white/near-black/low-saturation filtering,
+   perceptual quantisation, ΔE merge, ranking → `{ hex, coverage, saturation }[]`. Options cover
+   the crop rectangle, candidate count, "ignore greys" and the filter thresholds. Deterministic.
+2. **`model/colorRoles.ts` + tests.** `proposeTheme(candidates, headerCandidates, currentModel)` →
+   a partial `ThemeModel` (seed, `AppHeaderColors.background`/`foreground`, optional slot
+   overrides) plus, per suggestion, the contrast ratio from `contrast.ts` and a
+   pass/fail/needs-attention flag. Never mutates the current model.
+3. **`services/imageImport.ts`.** Three sources into one `LoadedImage { dataUri, imageData,
+   width, height }`: `fileSystem.selectPath` + `readBinary` (reuse the base64 helper and the image
+   MIME/type table from `services/webResources.ts`), clipboard paste, drag & drop. Enforce the
+   size/dimension guards, reject non-images with a readable message.
+4. **`services/siteCapture.ts`.** URL normalisation/validation, then
+   `utils.openInConnectionBrowser(url)` and the instructions for pasting the screenshot back.
+   Structured so an automatic provider can be slotted in later behind the feature switch without
+   touching the wizard.
+5. **`components/theme/ColorFromWebDialog.tsx`.** A Fluent v9 `Dialog` wizard, launched from a
+   "Get colors from a website" button in the Palette section of the Theme Panel:
+   - *Step 1 — Source*: URL box (with the two-step explanation) or image drop zone / browse /
+     paste.
+   - *Step 2 — Image*: the screenshot with a draggable crop rectangle, a "header only" shortcut,
+     an eyedropper that reads a single pixel, and the "ignore greys"/candidate-count controls.
+   - *Step 3 — Colors & roles*: the ranked swatches with coverage %, each assignable to a role;
+     the proposed values are editable with the existing `ColorField`, each pair showing its
+     contrast readout and §2.11 warnings; a live thumbnail of the preview header.
+   - *Apply* dispatches **one** action so undo reverts the whole extraction; *Cancel* changes
+     nothing. The dialog nests the provider per §2.10.
+6. **Wiring**: a single `applyExtractedColors` reducer action (patch semantics over the current
+   model, no full replace of unrelated fields), remembering only the last used options in
+   `toolboxAPI.settings` (`colorExtraction.*`) — never the image.
+7. Docs: README section + a note in `REQUIREMENTS.md` if the flow deviates.
+
+### Phase 7 — Stretch
 - Optional unthemed-vs-themed side-by-side comparison, Wave 2
   header/navigation preview variant, per-token "where is this used?" hints.
+- Automatic website capture for §2.14, behind an off-by-default switch: the local-headless-browser
+  spike (`toolboxAPI.terminal` + an installed Edge/Chrome) and/or an opt-in third-party screenshot
+  provider (needs `cspExceptions`, an explicit consent step and a stored API key).
+- Extract a logo candidate from the same screenshot, and derive `font` suggestions from the
+  captured page.
 
 ---
 
@@ -506,6 +655,11 @@ PPTB via `npm run dev-watch` + Load Local Tool.
 | Custom `font` not installed locally | WYSIWYG silently lies | Detect and warn; curated web-safe list |
 | Layout too cramped in a PPTB tab | Unusable | Collapsible panels + zoom, min-width target |
 | No offline mode | Tool unusable without a connection | Accepted trade-off (§2.12, owner decision) |
+| No screenshot capability in PPTB (§2.14) | The "from URL" promise can't be fully automated | Assisted capture (open in browser → paste back) as the v1 path, honest UI copy, automatic providers only as opt-in stretch |
+| Extracted palette doesn't match the site's perceived brand | Users distrust the feature | Crop/header-only selection, eyedropper override, every suggestion editable before it is applied |
+| Extraction produces low-contrast header pairs | Inaccessible themes (§2.11) | Contrast readouts and warnings on each proposal; auto-pick the foreground by contrast |
+| Large screenshots block the renderer | Tool freezes | Size/dimension guards + bounded downscale before analysis, work off the paint path |
+| A third-party screenshot service would receive internal URLs | Data leak | Off by default, explicit opt-in only, never the v1 path |
 
 ---
 
