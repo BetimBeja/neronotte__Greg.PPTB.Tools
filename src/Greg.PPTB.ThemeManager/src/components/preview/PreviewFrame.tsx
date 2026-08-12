@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FluentProvider, IdPrefixProvider, Switch, Tab, TabList, Text, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
 import { useThemeModel } from '../../state/ThemeContext';
+import { useConfig } from '../../state/ConfigContext';
 import { AppHeader } from './shell/AppHeader';
 import { NavBar } from './shell/NavBar';
 import { GridPreview } from './GridPreview';
@@ -94,6 +95,7 @@ const MAX_ZOOM = 100;
 export function PreviewFrame() {
     const styles = useStyles();
     const { previewTheme, model } = useThemeModel();
+    const { logoDataUri } = useConfig();
     const [selectedTab, setSelectedTab] = useState<PreviewTab>('view');
     const [zoom, setZoom] = useState(MAX_ZOOM);
     const [highlight, setHighlight] = useState(false);
@@ -140,7 +142,7 @@ export function PreviewFrame() {
                             className={mergeClasses(styles.app, highlight && styles.highlight)}
                             style={{ fontFamily: previewTheme.fontFamily }}
                         >
-                            <AppHeader colors={previewTheme.headerColors} logoTooltip={model.logoTooltip} appName="Sales Hub" />
+                            <AppHeader colors={previewTheme.headerColors} logoDataUri={logoDataUri} logoTooltip={model.logoTooltip} appName="Sales Hub" />
                             <div className={styles.body}>
                                 <NavBar />
                                 <div className={styles.canvas}>{selectedTab === 'view' ? <GridPreview /> : <FormPreview />}</div>
