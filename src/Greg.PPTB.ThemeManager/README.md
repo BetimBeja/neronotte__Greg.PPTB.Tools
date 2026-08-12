@@ -26,13 +26,16 @@ greg-pptb-thememanager/
 │   │   ├── theme/                 # ThemePanel: palette/typography/logo/header editors
 │   │   └── preview/               # PreviewFrame: app shell replica, view/form preview tabs
 │   │       └── shell/             # header, navigation and command bar shared by both tabs
-│   ├── model/                     # ThemeModel, XML parse/serialize, brand ramp, contrast, XML diff
+│   ├── model/                     # ThemeModel, XML parse/serialize, brand ramp, contrast, XML diff,
+│   │                              # colour extraction (quantiser) and role mapping
 │   ├── services/
 │   │   ├── themeFile.ts          # theme XML import/export via the PPTB filesystem API
 │   │   ├── webResources.ts       # web resource list/read/create/update/publish + solution association
 │   │   ├── solutions.ts          # solution picker source (unmanaged, visible solutions)
 │   │   ├── themeScope.ts         # environment/app scope assignment + maker-portal fallback
-│   │   └── logo.ts               # logo image pick/upload, size validation, data URI
+│   │   ├── logo.ts               # logo image pick/upload, size validation, data URI
+│   │   ├── imageImport.ts        # screenshot import: file / clipboard / drag & drop → pixels
+│   │   └── siteCapture.ts        # website URL validation + assisted screenshot capture
 │   ├── state/
 │   │   ├── ThemeContext.tsx      # theme state provider + derived palette/preview theme
 │   │   ├── ConfigContext.tsx     # connection, solution, theme web resource, logo
@@ -60,9 +63,31 @@ The tool requires an active Dataverse connection in Power Platform ToolBox.
 4. **Save to Dataverse**: the pre-save dialog shows an old-vs-new XML diff, lets you name a new web
    resource, and optionally publishes it (publishing is required for updates to take effect and
    affects the whole environment).
-5. **Apply theme**: assign the saved web resource to the whole environment or to a single app. Where
+5. **Get colors from a website** (Palette section): derive the theme from an existing site instead
+   of picking every colour by hand — see below.
+6. **Apply theme**: assign the saved web resource to the whole environment or to a single app. Where
    the setting can't be written through the API, the dialog shows the unique name to paste and deep
    links into the solution in the maker portal.
+
+### Getting the colors from a website
+
+The **Get colors from a website** button in the Palette section opens a three-step wizard:
+
+1. **Source** — type a site address and press *Open the site*, or browse for / paste (Ctrl+V) /
+   drag & drop a screenshot. Power Platform ToolBox exposes no screenshot API, so a URL is
+   resolved by *assisted capture*: the site opens in your browser, you take the screenshot and
+   paste it back into the wizard. Nothing is uploaded and no third-party service is called.
+2. **Image** — drag on the screenshot to analyse only a region (or use *Header only*), or click a
+   single pixel to use its exact colour. Near-white, near-black and — unless you turn *Ignore
+   greys* off — near-grey pixels are treated as noise.
+3. **Colors & roles** — the ranked colours are shown with their coverage and mapped onto the base
+   palette colour and the app header background/foreground, with the live WCAG contrast readout.
+   Everything is editable, and *Apply* is a single undoable step. Palette slot overrides are only
+   filled in when you explicitly ask for them.
+
+The screenshot is working data only: it is never saved to Dataverse and never stored in the
+ToolBox settings — only the extraction options (ignore greys, colour count, slot overrides) are
+remembered.
 
 ## Installation
 

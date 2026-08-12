@@ -1,4 +1,4 @@
-import type { AppHeaderColors, PaletteSlot, ThemeDocumentKind, ThemeModel } from '../model/theme';
+import type { AppHeaderColors, PaletteOverrides, PaletteSlot, ThemeDocumentKind, ThemeModel } from '../model/theme';
 import { createDefaultAppHeaderColorsModel, createDefaultThemeModel } from '../model/defaults';
 
 /**
@@ -33,6 +33,8 @@ export type ThemeAction =
     | { type: 'resetPaletteOverrides' }
     | { type: 'setAppHeaderColor'; attribute: keyof AppHeaderColors; value: string | undefined }
     | { type: 'setAppHeaderColorsEnabled'; enabled: boolean }
+    /** Applies a whole colour extraction (§2.14) as a single undoable step. */
+    | { type: 'applyExtractedColors'; patch: ExtractedColorsPatch }
     /** Replace the model and the baseline (load from file / Dataverse / reset). */
     | { type: 'load'; model: ThemeModel }
     /** Replace the model only, keeping the baseline (apply preset). */
@@ -40,6 +42,18 @@ export type ThemeAction =
     | { type: 'markSaved' }
     | { type: 'undo' }
     | { type: 'redo' };
+
+/**
+ * The colours the extraction wizard proposes. Only the fields the user kept
+ * are present, and the whole patch is applied by one action so undo reverts
+ * the extraction in a single step (docs/IMPLEMENTATION_PLAN.md §2.14).
+ */
+export interface ExtractedColorsPatch {
+    basePaletteColor?: string;
+    appHeaderBackground?: string;
+    appHeaderForeground?: string;
+    paletteOverrides?: PaletteOverrides;
+}
 
 export function createInitialThemeState(model: ThemeModel = createDefaultThemeModel()): ThemeState {
     return { present: model, past: [], future: [], baseline: model };
@@ -149,6 +163,29 @@ export function themeReducer(state: ThemeState, action: ThemeAction): ThemeState
                 return state;
             }
             return withPresent(state, { ...model, appHeaderColors: { background: '#0F6CBD', foreground: '#FFFFFF' } });
+        }
+        case 'applyExtractedColors': {
+            const { patch } = action;
+            const next: ThemeModel = { ...model };
+
+            if (patch.basePaletteColor !== undefined && model.kind === 'customTheme') {
+                next.basePaletteColor = optional(patch.basePaletteColor) ?? model.basePaletteColor;
+            }
+            if (patch.paletteOverrides && Object.keys(patch.paletteOverrides).length > 0 && model.kind === 'customTheme') {
+                next.paletteOverrides = { ...model.paletteOverrides, ...patch.paletteOverrides };
+            }
+            if (patch.appHeaderBackground !== undefined || patch.appHeaderForeground !== undefined) {
+                let headerColors = model.appHeaderColors;
+                if (patch.appHeaderBackground !== undefined) {
+                    headerColors = editHeaderColors(headerColors, 'background', patch.appHeaderBackground);
+                }
+                if (patch.appHeaderForeground !== undefined) {
+                    headerColors = editHeaderColors(headerColors, 'foreground', patch.appHeaderForeground);
+                }
+                next.appHeaderColors = headerColors;
+            }
+
+            return withPresent(state, next);
         }
         case 'load':
             return createInitialThemeState(action.model);
