@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 export function useConnection() {
   const [connection, setConnection] =
-    useState<ToolBoxAPI.DataverseConnection | null>(null);
+    useState<ToolBoxAPI.Connection | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshConnection = useCallback(async () => {
@@ -67,4 +67,41 @@ export function useHostTheme() {
   }, []);
 
   return hostTheme;
+}
+
+/**
+ * A piece of UI preference persisted through `toolboxAPI.settings` under a
+ * namespaced key (docs/IMPLEMENTATION_PLAN.md §2.12). Transient state must not
+ * use this hook — only preferences worth restoring on the next launch.
+ */
+export function usePersistedSetting<T>(key: string, defaultValue: T): [T, (value: T) => void] {
+  const [value, setValue] = useState<T>(defaultValue);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const stored = await window.toolboxAPI.settings.get(key);
+        if (!cancelled && stored !== undefined && stored !== null) {
+          setValue(stored as T);
+        }
+      } catch (error) {
+        console.error(`Error reading the "${key}" setting:`, error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [key]);
+
+  const update = useCallback(
+    (next: T) => {
+      setValue(next);
+      window.toolboxAPI.settings.set(key, next).catch((error) => console.error(`Error saving the "${key}" setting:`, error));
+    },
+    [key],
+  );
+
+  return [value, update];
 }

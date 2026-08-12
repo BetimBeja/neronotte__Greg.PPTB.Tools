@@ -5,6 +5,9 @@ import {
     AccordionItem,
     AccordionPanel,
     Button,
+    MessageBar,
+    MessageBarBody,
+    MessageBarTitle,
     Radio,
     RadioGroup,
     Text,
@@ -77,6 +80,11 @@ export function ThemePanel() {
     const { model, dispatch, dirty, canUndo, canRedo } = useThemeModel();
     const [busy, setBusy] = useState(false);
 
+    // Attributes the loaded file carries but this UI can't edit. They survive
+    // a load → save round trip untouched (docs/IMPLEMENTATION_PLAN.md §2.6),
+    // but the user has to know they are there.
+    const preserved = [...Object.keys(model.unknownAttributes), ...Object.keys(model.unknownAppHeaderColorsAttributes)];
+
     const handleImport = async () => {
         setBusy(true);
         try {
@@ -121,6 +129,15 @@ export function ThemePanel() {
                     </Text>
                 )}
             </div>
+
+            {preserved.length > 0 && (
+                <MessageBar intent="info">
+                    <MessageBarBody>
+                        <MessageBarTitle>Preserved as-is</MessageBarTitle>
+                        This theme also sets {preserved.join(', ')}, which this tool can't edit. The values are kept unchanged when the theme is saved.
+                    </MessageBarBody>
+                </MessageBar>
+            )}
 
             <Toolbar size="small">
                 <Tooltip content="Undo" relationship="label" mountNode={mountNode}>

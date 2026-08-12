@@ -6,6 +6,7 @@ import { ThemePanel } from './components/theme/ThemePanel';
 import { PreviewFrame } from './components/preview/PreviewFrame';
 import { useHostTheme } from './hooks/useToolboxAPI';
 import { ThemeProvider } from './state/ThemeContext';
+import { ConfigProvider } from './state/ConfigContext';
 import { PortalMountProvider } from './state/PortalMountContext';
 
 const useStyles = makeStyles({
@@ -78,13 +79,15 @@ function App() {
                         <Text className={styles.subtitle}>Configure model-driven app themes with a WYSIWYG preview</Text>
                     </div>
                     <ThemeProvider>
-                        <ConfigPanel />
-                        <div className={styles.body}>
-                            <div className={styles.main}>
-                                <PreviewFrame />
+                        <ConfigProvider>
+                            <ConfigPanel />
+                            <div className={styles.body}>
+                                <div className={styles.main}>
+                                    <PreviewFrame />
+                                </div>
+                                <ThemePanel />
                             </div>
-                            <ThemePanel />
-                        </div>
+                        </ConfigProvider>
                     </ThemeProvider>
                 </PortalMountProvider>
             </FluentProvider>

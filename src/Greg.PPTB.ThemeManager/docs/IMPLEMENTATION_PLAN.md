@@ -455,6 +455,33 @@ PPTB via `npm run dev-watch` + Load Local Tool.
   against 156 × 48, render it in the preview.
 - Unsaved-changes guard. No offline mode: the tool requires an active connection (§2.12).
 
+**Implemented.** Notes worth recording:
+
+- `services/webResources.ts` owns every `webresourceset` call. As anticipated in §2.5, PPTB's
+  `dataverseAPI.create` takes no request headers, so `MSCRM.SolutionUniqueName` is **not** used:
+  the web resource is created (or updated) and then attached to the chosen solution with
+  `AddSolutionComponent` (ComponentType 61). A failure there surfaces as an error — the tool never
+  silently leaves the web resource in the default solution.
+- Managed web resources are detected through `ismanaged` and blocked from being overwritten, with
+  "save as a new web resource" as the way out.
+- Saving always goes through a dialog showing an LCS **line diff** of the stored XML against the
+  XML about to be written (`model/xmlDiff.ts`), so anything the UI can't edit but the round trip
+  preserves is visible before the write. The Theme Panel additionally lists those preserved
+  attributes in a banner (§2.6).
+- Publishing is offered on every save (required after an update) with the environment-wide impact
+  spelled out; the targeted `PublishXml` payload is used, not `PublishAllXml`.
+- Scope assignment (`services/themeScope.ts`) resolves the two setting definitions **at runtime by
+  display name** and never hardcodes ids. When they can't be resolved or written, the dialog falls
+  back to the approved maker-portal route: it shows the unique name to paste, a copy button, the
+  exact "Add existing → More → Setting" steps and an "Open the solution" deep link through
+  `toolboxAPI.utils.openInConnectionBrowser` (§2.4). It also reads the *other* theme setting and
+  warns when both are configured.
+- The logo is resolved from the theme's `logoWebResource` name and rendered in the preview header;
+  a locally picked image is shown immediately, before the upload completes, and its size is
+  checked against 156 × 48.
+- The solution choice is remembered between sessions through `toolboxAPI.settings`
+  (`last.solutionUniqueName`), as are the preview tab and zoom (§2.12).
+
 ### Phase 5 — Polish & release
 - `toolboxAPI.settings` persistence, keyboard accessibility pass on the tool's own UI,
   notification/error-message review against PPTB conventions, README with screenshots,
