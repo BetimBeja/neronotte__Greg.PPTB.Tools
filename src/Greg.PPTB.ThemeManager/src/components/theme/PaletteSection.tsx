@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { Button, Divider, Dropdown, Field, Option, Slider, Switch, Text, Tooltip, makeStyles, tokens } from '@fluentui/react-components';
-import { ArrowResetRegular } from '@fluentui/react-icons';
+import { ArrowResetRegular, ColorRegular } from '@fluentui/react-icons';
 import { PALETTE_SLOTS, type PaletteSlot } from '../../model/theme';
 import { useThemeModel } from '../../state/ThemeContext';
 import { usePortalMount } from '../../state/PortalMountContext';
 import { THEME_PRESETS } from '../../model/defaults';
 import { ColorField } from './ColorField';
+import { ColorFromWebDialog } from './ColorFromWebDialog';
 
 const useStyles = makeStyles({
     section: {
@@ -38,6 +40,7 @@ export function PaletteSection() {
     const mountNode = usePortalMount();
     const { model, dispatch, generatedPalette, resolvedPalette } = useThemeModel();
     const hasOverrides = Object.keys(model.paletteOverrides).length > 0;
+    const [extractionOpen, setExtractionOpen] = useState(false);
 
     return (
         <div className={styles.section}>
@@ -61,6 +64,11 @@ export function PaletteSection() {
                     ))}
                 </Dropdown>
             </Field>
+
+            <Button appearance="secondary" icon={<ColorRegular />} onClick={() => setExtractionOpen(true)}>
+                Get colors from a website
+            </Button>
+            <ColorFromWebDialog open={extractionOpen} onDismiss={() => setExtractionOpen(false)} />
 
             <ColorField
                 label="Base palette color"

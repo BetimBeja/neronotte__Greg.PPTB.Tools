@@ -12,8 +12,7 @@ automatically from a website screenshot or URL. It is analysed in §2.14, reflec
 [`samples/`](./samples/) for the verbatim example files.
 
 Status: **owner decisions received**. Remaining 🟡 items need runtime verification (Phase 0
-spikes), not further product decisions — except §2.14, which is a newly added, not-yet-built
-requirement.
+spikes), not further product decisions. §2.14 is now built (Phase 6).
 
 ## Source policy
 
@@ -281,7 +280,7 @@ theming, per-user themes, dark mode (*"switching themes or enabling dark mode is
 this time"*), chart colour customisation (`CustomColorOverride`), and any real data in the mock —
 the preview is 100 % static sample data, per requirement §29.
 
-### 2.14 🟡 NEW — Color extraction from a website (screenshot or URL)
+### 2.14 ✅ Color extraction from a website (screenshot or URL)
 
 `REQUIREMENTS.md` §Color Extraction From a Website asks for a "brand-from-the-web" flow: give the
 tool a screenshot (or a site address) and get a proposed theme back. Analysis:
@@ -630,6 +629,28 @@ Self-contained feature, additive to everything above. Build it in this order:
    model, no full replace of unrelated fields), remembering only the last used options in
    `toolboxAPI.settings` (`colorExtraction.*`) — never the image.
 7. Docs: README section + a note in `REQUIREMENTS.md` if the flow deviates.
+
+**Implemented.** Notes worth recording:
+
+- `model/colorExtraction.ts` samples the image on a bounded grid (~200 steps on the longest edge),
+  filters transparent / near-white / near-black / near-grey pixels, buckets the rest at 3 bits per
+  channel and merges the buckets by **OKLab** distance. The merge walks the buckets in a
+  count-then-key order, so the ranked candidates are deterministic — which is what the synthetic
+  image tests assert.
+- Ranking is `coverage × (0.5 + saturation)`: coverage still dominates (a brand band should win
+  over a logo pixel), the saturation bonus only breaks the tie between comparable areas. The
+  *seed* choice in `colorRoles.ts` is the opposite trade-off — it prefers saturation, because a
+  large muted band makes a poor palette seed.
+- `colorRoles.ts` picks the header foreground from black/white **and** the extracted candidates,
+  keeping the best contrast, so the proposed pair is never worse than the platform default.
+- `services/imageImport.ts` downscales to a 1200 px working copy on import (on top of the
+  extractor's own sampling) and enforces the 20 MB / 8000 px guards. SVG and ICO are excluded:
+  neither has a dependable raster size to analyse.
+- The URL route is the assisted capture decided above; `services/siteCapture.ts` normalises the
+  address, accepts only `http:`/`https:` and rejects embedded credentials.
+- Applying is the single `applyExtractedColors` reducer action. It patches only the fields the
+  wizard proposed, and it ignores `basePaletteColor`/slot overrides on an `appHeaderColorsOnly`
+  document, where they have no meaning.
 
 ### Phase 7 — Stretch
 - Optional unthemed-vs-themed side-by-side comparison, Wave 2
