@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultThemeModel } from '../../model/defaults';
+import { createDefaultAppHeaderColorsModel, createDefaultThemeModel } from '../../model/defaults';
 import { parseThemeXml } from '../../model/themeXml';
 import { createInitialThemeState, isDirty, MAX_HISTORY, themeReducer, type ThemeState } from '../themeReducer';
 
@@ -143,5 +143,56 @@ describe('dirty tracking', () => {
 
         expect(isDirty(state)).toBe(true);
         expect(state.past).toHaveLength(1);
+    });
+});
+
+describe('applyExtractedColors', () => {
+    it('applies seed, header colours and slot overrides in one undoable step', () => {
+        const state = themeReducer(initial(), {
+            type: 'applyExtractedColors',
+            patch: {
+                basePaletteColor: '#0F6CBD',
+                appHeaderBackground: '#D66A15',
+                appHeaderForeground: '#000000',
+                paletteOverrides: { primary: '#0F6CBD' },
+            },
+        });
+
+        expect(state.present.basePaletteColor).toBe('#0F6CBD');
+        expect(state.present.appHeaderColors).toEqual({ background: '#D66A15', foreground: '#000000' });
+        expect(state.present.paletteOverrides).toEqual({ primary: '#0F6CBD' });
+        expect(state.past).toHaveLength(1);
+
+        const undone = themeReducer(state, { type: 'undo' });
+        expect(undone.present.basePaletteColor).toBeUndefined();
+        expect(undone.present.appHeaderColors).toBeUndefined();
+        expect(undone.present.paletteOverrides).toEqual({});
+        expect(isDirty(undone)).toBe(false);
+    });
+
+    it('leaves the fields the wizard did not propose untouched', () => {
+        const start = createInitialThemeState({ ...createDefaultThemeModel(), basePaletteColor: '#123456', font: 'Arial' });
+        const state = themeReducer(start, { type: 'applyExtractedColors', patch: { appHeaderBackground: '#0F6CBD' } });
+
+        expect(state.present.basePaletteColor).toBe('#123456');
+        expect(state.present.font).toBe('Arial');
+        expect(state.present.appHeaderColors?.background).toBe('#0F6CBD');
+    });
+
+    it('ignores palette fields on an app-header-only document', () => {
+        const start = createInitialThemeState(createDefaultAppHeaderColorsModel());
+        const state = themeReducer(start, {
+            type: 'applyExtractedColors',
+            patch: { basePaletteColor: '#0F6CBD', paletteOverrides: { primary: '#0F6CBD' }, appHeaderBackground: '#0F6CBD' },
+        });
+
+        expect(state.present.basePaletteColor).toBeUndefined();
+        expect(state.present.paletteOverrides).toEqual({});
+        expect(state.present.appHeaderColors?.background).toBe('#0F6CBD');
+    });
+
+    it('is a no-op for an empty patch', () => {
+        const start = initial();
+        expect(themeReducer(start, { type: 'applyExtractedColors', patch: {} })).toBe(start);
     });
 });
