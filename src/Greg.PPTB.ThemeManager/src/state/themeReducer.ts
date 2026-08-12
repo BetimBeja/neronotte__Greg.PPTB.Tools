@@ -1,5 +1,14 @@
-import type { AppHeaderColors, PaletteOverrides, PaletteSlot, ThemeDocumentKind, ThemeModel } from '../model/theme';
-import { createDefaultAppHeaderColorsModel, createDefaultThemeModel } from '../model/defaults';
+import type {
+  AppHeaderColors,
+  PaletteOverrides,
+  PaletteSlot,
+  ThemeDocumentKind,
+  ThemeModel,
+} from "../model/theme";
+import {
+  createDefaultAppHeaderColorsModel,
+  createDefaultThemeModel,
+} from "../model/defaults";
 
 /**
  * Pure state machine behind the Theme Panel: a current `ThemeModel` plus an
@@ -12,36 +21,40 @@ import { createDefaultAppHeaderColorsModel, createDefaultThemeModel } from '../m
 export const MAX_HISTORY = 50;
 
 export interface ThemeState {
-    /** The model currently being edited. */
-    present: ThemeModel;
-    past: ThemeModel[];
-    future: ThemeModel[];
-    /** The last loaded (or saved) model; `present` is dirty when it differs. */
-    baseline: ThemeModel;
+  /** The model currently being edited. */
+  present: ThemeModel;
+  past: ThemeModel[];
+  future: ThemeModel[];
+  /** The last loaded (or saved) model; `present` is dirty when it differs. */
+  baseline: ThemeModel;
 }
 
 export type ThemeAction =
-    | { type: 'setKind'; kind: ThemeDocumentKind }
-    | { type: 'setBasePaletteColor'; value: string | undefined }
-    | { type: 'setLockPrimary'; value: boolean }
-    | { type: 'setFont'; value: string | undefined }
-    | { type: 'setVibrancy'; value: number }
-    | { type: 'setHueTorsion'; value: number }
-    | { type: 'setLogoWebResource'; value: string | undefined }
-    | { type: 'setLogoTooltip'; value: string | undefined }
-    | { type: 'setPaletteOverride'; slot: PaletteSlot; value: string | undefined }
-    | { type: 'resetPaletteOverrides' }
-    | { type: 'setAppHeaderColor'; attribute: keyof AppHeaderColors; value: string | undefined }
-    | { type: 'setAppHeaderColorsEnabled'; enabled: boolean }
-    /** Applies a whole colour extraction (§2.14) as a single undoable step. */
-    | { type: 'applyExtractedColors'; patch: ExtractedColorsPatch }
-    /** Replace the model and the baseline (load from file / Dataverse / reset). */
-    | { type: 'load'; model: ThemeModel }
-    /** Replace the model only, keeping the baseline (apply preset). */
-    | { type: 'replace'; model: ThemeModel }
-    | { type: 'markSaved' }
-    | { type: 'undo' }
-    | { type: 'redo' };
+  | { type: "setKind"; kind: ThemeDocumentKind }
+  | { type: "setBasePaletteColor"; value: string | undefined }
+  | { type: "setLockPrimary"; value: boolean }
+  | { type: "setFont"; value: string | undefined }
+  | { type: "setVibrancy"; value: number }
+  | { type: "setHueTorsion"; value: number }
+  | { type: "setLogoWebResource"; value: string | undefined }
+  | { type: "setLogoTooltip"; value: string | undefined }
+  | { type: "setPaletteOverride"; slot: PaletteSlot; value: string | undefined }
+  | { type: "resetPaletteOverrides" }
+  | {
+      type: "setAppHeaderColor";
+      attribute: keyof AppHeaderColors;
+      value: string | undefined;
+    }
+  | { type: "setAppHeaderColorsEnabled"; enabled: boolean }
+  /** Applies a whole colour extraction (§2.14) as a single undoable step. */
+  | { type: "applyExtractedColors"; patch: ExtractedColorsPatch }
+  /** Replace the model and the baseline (load from file / Dataverse / reset). */
+  | { type: "load"; model: ThemeModel }
+  /** Replace the model only, keeping the baseline (apply preset). */
+  | { type: "replace"; model: ThemeModel }
+  | { type: "markSaved" }
+  | { type: "undo" }
+  | { type: "redo" };
 
 /**
  * The colours the extraction wizard proposes. Only the fields the user kept
@@ -49,175 +62,236 @@ export type ThemeAction =
  * the extraction in a single step (docs/IMPLEMENTATION_PLAN.md §2.14).
  */
 export interface ExtractedColorsPatch {
-    basePaletteColor?: string;
-    appHeaderBackground?: string;
-    appHeaderForeground?: string;
-    paletteOverrides?: PaletteOverrides;
+  basePaletteColor?: string;
+  appHeaderBackground?: string;
+  appHeaderForeground?: string;
+  paletteOverrides?: PaletteOverrides;
 }
 
-export function createInitialThemeState(model: ThemeModel = createDefaultThemeModel()): ThemeState {
-    return { present: model, past: [], future: [], baseline: model };
+export function createInitialThemeState(
+  model: ThemeModel = createDefaultThemeModel(),
+): ThemeState {
+  return { present: model, past: [], future: [], baseline: model };
 }
 
 /** Structural equality over the model, which is a plain JSON-serialisable object. */
 export function isSameModel(a: ThemeModel, b: ThemeModel): boolean {
-    return JSON.stringify(a) === JSON.stringify(b);
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 /** Whether the edited model differs from the last loaded/saved baseline. */
 export function isDirty(state: ThemeState): boolean {
-    return !isSameModel(state.present, state.baseline);
+  return !isSameModel(state.present, state.baseline);
 }
 
 function withPresent(state: ThemeState, next: ThemeModel): ThemeState {
-    if (isSameModel(state.present, next)) {
-        return state;
-    }
-    return {
-        ...state,
-        present: next,
-        past: [...state.past, state.present].slice(-MAX_HISTORY),
-        future: [],
-    };
+  if (isSameModel(state.present, next)) {
+    return state;
+  }
+  return {
+    ...state,
+    present: next,
+    past: [...state.past, state.present].slice(-MAX_HISTORY),
+    future: [],
+  };
 }
 
 /** Normalises an optional string field, dropping it entirely when blank. */
 function optional(value: string | undefined): string | undefined {
-    const trimmed = value?.trim();
-    return trimmed ? trimmed : undefined;
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
 }
 
-function editHeaderColors(current: AppHeaderColors | undefined, attribute: keyof AppHeaderColors, value: string | undefined): AppHeaderColors {
-    const next: AppHeaderColors = { ...(current ?? { background: '' }) };
-    const normalized = optional(value);
+/** Like `optional`, but keeps the user's spacing: trimming mid-typing eats the space they just pressed. */
+function optionalPreservingSpaces(
+  value: string | undefined,
+): string | undefined {
+  return value?.trim() ? value : undefined;
+}
 
-    if (normalized === undefined) {
-        if (attribute === 'background') {
-            next.background = '';
-        } else {
-            delete next[attribute];
-        }
+function editHeaderColors(
+  current: AppHeaderColors | undefined,
+  attribute: keyof AppHeaderColors,
+  value: string | undefined,
+): AppHeaderColors {
+  const next: AppHeaderColors = { ...(current ?? { background: "" }) };
+  const normalized = optional(value);
+
+  if (normalized === undefined) {
+    if (attribute === "background") {
+      next.background = "";
     } else {
-        next[attribute] = normalized;
+      delete next[attribute];
     }
+  } else {
+    next[attribute] = normalized;
+  }
 
-    return next;
+  return next;
 }
 
-export function themeReducer(state: ThemeState, action: ThemeAction): ThemeState {
-    const model = state.present;
+export function themeReducer(
+  state: ThemeState,
+  action: ThemeAction,
+): ThemeState {
+  const model = state.present;
 
-    switch (action.type) {
-        case 'setKind': {
-            if (action.kind === model.kind) {
-                return state;
+  switch (action.type) {
+    case "setKind": {
+      if (action.kind === model.kind) {
+        return state;
+      }
+      const next: ThemeModel =
+        action.kind === "appHeaderColorsOnly"
+          ? {
+              ...createDefaultAppHeaderColorsModel(),
+              appHeaderColors: model.appHeaderColors ?? { background: "" },
+              unknownAppHeaderColorsAttributes:
+                model.unknownAppHeaderColorsAttributes,
             }
-            const next: ThemeModel =
-                action.kind === 'appHeaderColorsOnly'
-                    ? {
-                          ...createDefaultAppHeaderColorsModel(),
-                          appHeaderColors: model.appHeaderColors ?? { background: '' },
-                          unknownAppHeaderColorsAttributes: model.unknownAppHeaderColorsAttributes,
-                      }
-                    : { ...model, kind: 'customTheme' };
-            return withPresent(state, next);
-        }
-        case 'setBasePaletteColor':
-            return withPresent(state, { ...model, basePaletteColor: optional(action.value) });
-        case 'setLockPrimary':
-            return withPresent(state, { ...model, lockPrimary: action.value });
-        case 'setFont':
-            return withPresent(state, { ...model, font: optional(action.value) });
-        case 'setVibrancy':
-            return withPresent(state, { ...model, vibrancy: action.value });
-        case 'setHueTorsion':
-            return withPresent(state, { ...model, hueTorsion: action.value });
-        case 'setLogoWebResource':
-            return withPresent(state, { ...model, logoWebResource: optional(action.value) });
-        case 'setLogoTooltip':
-            return withPresent(state, { ...model, logoTooltip: optional(action.value) });
-        case 'setPaletteOverride': {
-            const paletteOverrides = { ...model.paletteOverrides };
-            const value = optional(action.value);
-            if (value === undefined) {
-                delete paletteOverrides[action.slot];
-            } else {
-                paletteOverrides[action.slot] = value;
-            }
-            return withPresent(state, { ...model, paletteOverrides });
-        }
-        case 'resetPaletteOverrides':
-            return withPresent(state, { ...model, paletteOverrides: {} });
-        case 'setAppHeaderColor':
-            return withPresent(state, { ...model, appHeaderColors: editHeaderColors(model.appHeaderColors, action.attribute, action.value) });
-        case 'setAppHeaderColorsEnabled': {
-            if (!action.enabled) {
-                // The header override *is* an `appHeaderColorsOnly` document, so it
-                // can only be removed from a `customTheme` document.
-                if (model.kind === 'appHeaderColorsOnly') {
-                    return state;
-                }
-                return withPresent(state, { ...model, appHeaderColors: undefined });
-            }
-            if (model.appHeaderColors) {
-                return state;
-            }
-            return withPresent(state, { ...model, appHeaderColors: { background: '#0F6CBD', foreground: '#FFFFFF' } });
-        }
-        case 'applyExtractedColors': {
-            const { patch } = action;
-            const next: ThemeModel = { ...model };
-
-            if (patch.basePaletteColor !== undefined && model.kind === 'customTheme') {
-                next.basePaletteColor = optional(patch.basePaletteColor) ?? model.basePaletteColor;
-            }
-            if (patch.paletteOverrides && Object.keys(patch.paletteOverrides).length > 0 && model.kind === 'customTheme') {
-                next.paletteOverrides = { ...model.paletteOverrides, ...patch.paletteOverrides };
-            }
-            if (patch.appHeaderBackground !== undefined || patch.appHeaderForeground !== undefined) {
-                let headerColors = model.appHeaderColors;
-                if (patch.appHeaderBackground !== undefined) {
-                    headerColors = editHeaderColors(headerColors, 'background', patch.appHeaderBackground);
-                }
-                if (patch.appHeaderForeground !== undefined) {
-                    headerColors = editHeaderColors(headerColors, 'foreground', patch.appHeaderForeground);
-                }
-                next.appHeaderColors = headerColors;
-            }
-
-            return withPresent(state, next);
-        }
-        case 'load':
-            return createInitialThemeState(action.model);
-        case 'replace':
-            return withPresent(state, action.model);
-        case 'markSaved':
-            return { ...state, baseline: state.present };
-        case 'undo': {
-            if (state.past.length === 0) {
-                return state;
-            }
-            const previous = state.past[state.past.length - 1];
-            return {
-                ...state,
-                present: previous,
-                past: state.past.slice(0, -1),
-                future: [state.present, ...state.future],
-            };
-        }
-        case 'redo': {
-            if (state.future.length === 0) {
-                return state;
-            }
-            const [next, ...rest] = state.future;
-            return {
-                ...state,
-                present: next,
-                past: [...state.past, state.present].slice(-MAX_HISTORY),
-                future: rest,
-            };
-        }
-        default:
-            return state;
+          : { ...model, kind: "customTheme" };
+      return withPresent(state, next);
     }
+    case "setBasePaletteColor":
+      return withPresent(state, {
+        ...model,
+        basePaletteColor: optional(action.value),
+      });
+    case "setLockPrimary":
+      return withPresent(state, { ...model, lockPrimary: action.value });
+    case "setFont":
+      return withPresent(state, {
+        ...model,
+        font: optionalPreservingSpaces(action.value),
+      });
+    case "setVibrancy":
+      return withPresent(state, { ...model, vibrancy: action.value });
+    case "setHueTorsion":
+      return withPresent(state, { ...model, hueTorsion: action.value });
+    case "setLogoWebResource":
+      return withPresent(state, {
+        ...model,
+        logoWebResource: optional(action.value),
+      });
+    case "setLogoTooltip":
+      return withPresent(state, {
+        ...model,
+        logoTooltip: optional(action.value),
+      });
+    case "setPaletteOverride": {
+      const paletteOverrides = { ...model.paletteOverrides };
+      const value = optional(action.value);
+      if (value === undefined) {
+        delete paletteOverrides[action.slot];
+      } else {
+        paletteOverrides[action.slot] = value;
+      }
+      return withPresent(state, { ...model, paletteOverrides });
+    }
+    case "resetPaletteOverrides":
+      return withPresent(state, { ...model, paletteOverrides: {} });
+    case "setAppHeaderColor":
+      return withPresent(state, {
+        ...model,
+        appHeaderColors: editHeaderColors(
+          model.appHeaderColors,
+          action.attribute,
+          action.value,
+        ),
+      });
+    case "setAppHeaderColorsEnabled": {
+      if (!action.enabled) {
+        // The header override *is* an `appHeaderColorsOnly` document, so it
+        // can only be removed from a `customTheme` document.
+        if (model.kind === "appHeaderColorsOnly") {
+          return state;
+        }
+        return withPresent(state, { ...model, appHeaderColors: undefined });
+      }
+      if (model.appHeaderColors) {
+        return state;
+      }
+      return withPresent(state, {
+        ...model,
+        appHeaderColors: { background: "#0F6CBD", foreground: "#FFFFFF" },
+      });
+    }
+    case "applyExtractedColors": {
+      const { patch } = action;
+      const next: ThemeModel = { ...model };
+
+      if (
+        patch.basePaletteColor !== undefined &&
+        model.kind === "customTheme"
+      ) {
+        next.basePaletteColor =
+          optional(patch.basePaletteColor) ?? model.basePaletteColor;
+      }
+      if (
+        patch.paletteOverrides &&
+        Object.keys(patch.paletteOverrides).length > 0 &&
+        model.kind === "customTheme"
+      ) {
+        next.paletteOverrides = {
+          ...model.paletteOverrides,
+          ...patch.paletteOverrides,
+        };
+      }
+      if (
+        patch.appHeaderBackground !== undefined ||
+        patch.appHeaderForeground !== undefined
+      ) {
+        let headerColors = model.appHeaderColors;
+        if (patch.appHeaderBackground !== undefined) {
+          headerColors = editHeaderColors(
+            headerColors,
+            "background",
+            patch.appHeaderBackground,
+          );
+        }
+        if (patch.appHeaderForeground !== undefined) {
+          headerColors = editHeaderColors(
+            headerColors,
+            "foreground",
+            patch.appHeaderForeground,
+          );
+        }
+        next.appHeaderColors = headerColors;
+      }
+
+      return withPresent(state, next);
+    }
+    case "load":
+      return createInitialThemeState(action.model);
+    case "replace":
+      return withPresent(state, action.model);
+    case "markSaved":
+      return { ...state, baseline: state.present };
+    case "undo": {
+      if (state.past.length === 0) {
+        return state;
+      }
+      const previous = state.past[state.past.length - 1];
+      return {
+        ...state,
+        present: previous,
+        past: state.past.slice(0, -1),
+        future: [state.present, ...state.future],
+      };
+    }
+    case "redo": {
+      if (state.future.length === 0) {
+        return state;
+      }
+      const [next, ...rest] = state.future;
+      return {
+        ...state,
+        present: next,
+        past: [...state.past, state.present].slice(-MAX_HISTORY),
+        future: rest,
+      };
+    }
+    default:
+      return state;
+  }
 }

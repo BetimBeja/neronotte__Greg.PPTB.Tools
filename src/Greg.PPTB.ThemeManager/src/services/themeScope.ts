@@ -152,6 +152,38 @@ async function findExisting(entitySet: string, filter: string, idColumn: string)
     return record ? asString(record[idColumn]) : undefined;
 }
 
+const navigationPropertyCache = new Map<string, string>();
+
+/**
+ * OData `@odata.bind` requires the exact, case-sensitive single-valued
+ * navigation property name — which for these undocumented settings tables
+ * doesn't necessarily match the lookup attribute's logical name. Resolving it
+ * from relationship metadata avoids the "undeclared property" OData error
+ * that a hardcoded guess (e.g. `SettingDefinitionId`) can trigger.
+ */
+async function resolveNavigationProperty(entityLogicalName: string, referencingAttribute: string): Promise<string> {
+    const cacheKey = `${entityLogicalName}.${referencingAttribute}`;
+    const cached = navigationPropertyCache.get(cacheKey);
+    if (cached) {
+        return cached;
+    }
+
+    const result = await window.dataverseAPI.getEntityRelatedMetadata(entityLogicalName, 'ManyToOneRelationships', [
+        'ReferencingAttribute',
+        'ReferencingEntityNavigationPropertyName',
+    ]);
+    const relationship = result.value.find(
+        (candidate) => asString(candidate.ReferencingAttribute).toLowerCase() === referencingAttribute.toLowerCase(),
+    );
+    if (!relationship) {
+        throw new Error(`No lookup relationship for "${referencingAttribute}" was found on "${entityLogicalName}".`);
+    }
+
+    const navigationProperty = asString(relationship.ReferencingEntityNavigationPropertyName);
+    navigationPropertyCache.set(cacheKey, navigationProperty);
+    return navigationProperty;
+}
+
 /**
  * Writes the environment-wide value of a theme setting (the web resource unique
  * name). Throws `DataverseOperationError` when the API path is unavailable so
@@ -164,9 +196,10 @@ export async function setEnvironmentScope(definition: SettingDefinitionRef, webR
             await window.dataverseAPI.update('organizationsetting', existingId, { value: webResourceName });
             return;
         }
+        const settingDefinitionNav = await resolveNavigationProperty('organizationsetting', 'settingdefinitionid');
         await window.dataverseAPI.create('organizationsetting', {
             value: webResourceName,
-            'SettingDefinitionId@odata.bind': `/settingdefinitions(${definition.id})`,
+            [`${settingDefinitionNav}@odata.bind`]: `/settingdefinitions(${definition.id})`,
         });
     } catch (error) {
         throw new DataverseOperationError(`Assigning the theme to the environment failed: ${describe(error)}`, error);
@@ -182,10 +215,14 @@ export async function setAppScope(definition: SettingDefinitionRef, appId: strin
             await window.dataverseAPI.update('appsetting', existingId, { value: webResourceName });
             return;
         }
+        const [settingDefinitionNav, appModuleNav] = await Promise.all([
+            resolveNavigationProperty('appsetting', 'settingdefinitionid'),
+            resolveNavigationProperty('appsetting', 'appmoduleid'),
+        ]);
         await window.dataverseAPI.create('appsetting', {
             value: webResourceName,
-            'SettingDefinitionId@odata.bind': `/settingdefinitions(${definition.id})`,
-            'AppModuleId@odata.bind': `/appmodules(${appId})`,
+            [`${settingDefinitionNav}@odata.bind`]: `/settingdefinitions(${definition.id})`,
+            [`${appModuleNav}@odata.bind`]: `/appmodules(${appId})`,
         });
     } catch (error) {
         throw new DataverseOperationError(`Assigning the theme to the app failed: ${describe(error)}`, error);
