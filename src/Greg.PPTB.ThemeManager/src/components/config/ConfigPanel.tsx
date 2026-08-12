@@ -124,9 +124,12 @@ export function ConfigPanel() {
             const content = await readWebResource(resource.id);
             const xml = webResourceXml(content);
             dispatch({ type: 'load', model: parseThemeXml(xml) });
-            setOpenTheme({ resource: content, originalXml: xml });
-            if (content.isManaged) {
-                await notify('Managed web resource', `"${content.name}" is managed: it can be inspected but not overwritten.`, 'warning');
+            // Keep the summary only: the base64 payload is already decoded into
+            // `originalXml` and there is no reason to hold it in state twice.
+            const { contentBase64: _content, ...summary } = content;
+            setOpenTheme({ resource: summary, originalXml: xml });
+            if (summary.isManaged) {
+                await notify('Managed web resource', `"${summary.name}" is managed: it can be inspected but not overwritten.`, 'warning');
             }
         } catch (error) {
             await notify('Load failed', message(error), 'error');

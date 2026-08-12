@@ -136,6 +136,8 @@ export function ScopeDialog({ open, onDismiss, webResourceName, kind, mountNode 
             } else if (appId) {
                 await setAppScope(definition, appId, webResourceName);
                 setStatus(`"${THEME_SETTING_DISPLAY_NAMES[kind]}" is now set to ${webResourceName} for the selected app. Publish all customizations to apply it.`);
+            } else {
+                setError('Select the app the theme should apply to.');
             }
         } catch (applyError) {
             setError(message(applyError));

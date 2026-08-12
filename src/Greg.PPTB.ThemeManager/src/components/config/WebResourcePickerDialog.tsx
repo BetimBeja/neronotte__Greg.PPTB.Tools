@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Button,
     Dialog,
@@ -80,21 +80,24 @@ export function WebResourcePickerDialog({ open, title, types, onDismiss, onPick,
     const [error, setError] = useState<string | undefined>();
     const [selected, setSelected] = useState<WebResourceSummary | undefined>();
 
+    // The prop is a fresh array on every render, so the join is what keeps the
+    // callback (and the effect below) stable.
     const typesKey = types.join(',');
+    const requestedTypes = useMemo(() => typesKey.split(',').map(Number), [typesKey]);
 
     const load = useCallback(
         async (term: string) => {
             setLoading(true);
             setError(undefined);
             try {
-                setItems(await listWebResources(typesKey.split(',').map(Number), term));
+                setItems(await listWebResources(requestedTypes, term));
             } catch (loadError) {
                 setError(loadError instanceof Error ? loadError.message : String(loadError));
             } finally {
                 setLoading(false);
             }
         },
-        [typesKey],
+        [requestedTypes],
     );
 
     useEffect(() => {
