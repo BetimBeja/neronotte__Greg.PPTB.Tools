@@ -154,7 +154,7 @@ export function ThemePanel() {
             <Accordion multiple collapsible defaultOpenItems={['palette', 'appHeader']}>
                 {model.kind === 'customTheme' && (
                     <AccordionItem value="palette">
-                        <AccordionHeader>Palette</AccordionHeader>
+                        <AccordionHeader>🎨 Palette</AccordionHeader>
                         <AccordionPanel>
                             <PaletteSection />
                         </AccordionPanel>
@@ -162,7 +162,7 @@ export function ThemePanel() {
                 )}
                 {model.kind === 'customTheme' && (
                     <AccordionItem value="typography">
-                        <AccordionHeader>Typography</AccordionHeader>
+                        <AccordionHeader>🔤 Typography</AccordionHeader>
                         <AccordionPanel>
                             <TypographySection />
                         </AccordionPanel>
@@ -170,14 +170,14 @@ export function ThemePanel() {
                 )}
                 {model.kind === 'customTheme' && (
                     <AccordionItem value="logo">
-                        <AccordionHeader>Logo</AccordionHeader>
+                        <AccordionHeader>🖼️ Logo</AccordionHeader>
                         <AccordionPanel>
                             <LogoSection />
                         </AccordionPanel>
                     </AccordionItem>
                 )}
                 <AccordionItem value="appHeader">
-                    <AccordionHeader>App header</AccordionHeader>
+                    <AccordionHeader>🧭 App header</AccordionHeader>
                     <AccordionPanel>
                         <AppHeaderSection />
                     </AccordionPanel>
