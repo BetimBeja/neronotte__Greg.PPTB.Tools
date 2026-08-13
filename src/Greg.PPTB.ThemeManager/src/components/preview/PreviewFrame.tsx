@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { FluentProvider, IdPrefixProvider, Switch, Tab, TabList, Text, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
+import {
+    FluentProvider,
+    IdPrefixProvider,
+    Slider,
+    Switch,
+    Tab,
+    TabList,
+    Text,
+    makeStyles,
+    mergeClasses,
+    tokens,
+} from '@fluentui/react-components';
 import { useThemeModel } from '../../state/ThemeContext';
 import { useConfig } from '../../state/ConfigContext';
 import { usePersistedSetting } from '../../hooks/useToolboxAPI';
@@ -8,6 +19,11 @@ import { NavBar } from './shell/NavBar';
 import { GridPreview } from './GridPreview';
 import { FormPreview } from './FormPreview';
 
+// Container-query breakpoints (panel width, narrowest first): the highlight
+// toggle fades before the zoom control, purely via CSS - no ResizeObserver.
+const HIDE_HIGHLIGHT_QUERY = '(max-width: 760px)';
+const HIDE_ZOOM_QUERY = '(max-width: 560px)';
+
 const useStyles = makeStyles({
     root: {
         display: 'flex',
@@ -15,6 +31,8 @@ const useStyles = makeStyles({
         flex: 1,
         minWidth: 0,
         minHeight: 0,
+        containerType: 'inline-size',
+        containerName: 'previewPanel',
     },
     toolbar: {
         display: 'flex',
@@ -22,6 +40,7 @@ const useStyles = makeStyles({
         gap: tokens.spacingHorizontalL,
         padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalL} 0`,
         borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+        textWrap: 'nowrap',
     },
     toolbarEnd: {
         display: 'flex',
@@ -29,14 +48,48 @@ const useStyles = makeStyles({
         gap: tokens.spacingHorizontalM,
         marginLeft: 'auto',
         paddingBottom: tokens.spacingVerticalXS,
+        minWidth: 0,
+        overflow: 'hidden',
+    },
+    fadeItem: {
+        display: 'flex',
+        alignItems: 'center',
+        opacity: 1,
+        transition:
+            `opacity ${tokens.durationNormal} ${tokens.curveEasyEase}, ` +
+            `width ${tokens.durationNormal} ${tokens.curveEasyEase}, ` +
+            `margin ${tokens.durationNormal} ${tokens.curveEasyEase}`,
+    },
+    fadeHighlight: {
+        [`@container previewPanel ${HIDE_HIGHLIGHT_QUERY}`]: {
+            opacity: 0,
+            width: 0,
+            marginLeft: `calc(-1 * ${tokens.spacingHorizontalM})`,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+        },
+    },
+    fadeZoom: {
+        [`@container previewPanel ${HIDE_ZOOM_QUERY}`]: {
+            opacity: 0,
+            width: 0,
+            marginLeft: `calc(-1 * ${tokens.spacingHorizontalM})`,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+        },
     },
     zoom: {
         display: 'flex',
         alignItems: 'center',
         gap: tokens.spacingHorizontalXS,
+        flexShrink: 0,
+    },
+    zoomSlider: {
+        width: '100px',
+        minWidth: '80px',
     },
     zoomValue: {
-        minWidth: '44px',
+        minWidth: '36px',
         textAlign: 'right',
         color: tokens.colorNeutralForeground3,
     },
@@ -97,59 +150,102 @@ export function PreviewFrame() {
     const styles = useStyles();
     const { previewTheme, model } = useThemeModel();
     const { logoDataUri } = useConfig();
-    const [selectedTab, setSelectedTab] = usePersistedSetting<PreviewTab>('ui.previewTab', 'view');
+    const [selectedTab, setSelectedTab] = usePersistedSetting<PreviewTab>(
+        'ui.previewTab',
+        'view'
+    );
     const [zoom, setZoom] = usePersistedSetting('ui.previewZoom', MAX_ZOOM);
     const [highlight, setHighlight] = useState(false);
 
     return (
         <div className={styles.root}>
-            <div className={styles.toolbar}>
-                <TabList selectedValue={selectedTab} onTabSelect={(_, data) => setSelectedTab(data.value as PreviewTab)}>
-                    <Tab value="view">View</Tab>
-                    <Tab value="form">Form</Tab>
-                </TabList>
-                <div className={styles.toolbarEnd}>
-                    <Switch
-                        checked={highlight}
-                        onChange={(_, data) => setHighlight(data.checked)}
-                        label="Highlight themed areas"
-                        aria-label="Highlight the areas of the app the theme changes"
-                    />
-                    <div className={styles.zoom}>
-                        <Text size={200}>Zoom</Text>
-                        <input
-                            type="range"
-                            min={MIN_ZOOM}
-                            max={MAX_ZOOM}
-                            step={10}
-                            value={zoom}
-                            aria-label="Preview zoom"
-                            onChange={(event) => setZoom(Number(event.target.value))}
-                        />
-                        <Text size={200} className={styles.zoomValue}>
-                            {zoom}%
-                        </Text>
-                    </div>
-                </div>
-            </div>
-
             <div className={styles.scroll}>
-                <div className={styles.scaler} style={{ transform: `scale(${zoom / 100})`, width: `${(100 / zoom) * 100}%` }}>
+                <div
+                    className={styles.scaler}
+                    style={{
+                        transform: `scale(${zoom / 100})`,
+                        width: `${(100 / zoom) * 100}%`,
+                    }}
+                >
                     {/* An id prefix of its own keeps the previewed theme's generated
                         ids from colliding with the tool's own Fluent instance. */}
                     <IdPrefixProvider value="preview-">
                         <FluentProvider
                             theme={previewTheme.fluentTheme}
-                            className={mergeClasses(styles.app, highlight && styles.highlight)}
+                            className={mergeClasses(
+                                styles.app,
+                                highlight && styles.highlight
+                            )}
                             style={{ fontFamily: previewTheme.fontFamily }}
                         >
-                            <AppHeader colors={previewTheme.headerColors} logoDataUri={logoDataUri} logoTooltip={model.logoTooltip} appName="Sales Hub" />
+                            <AppHeader
+                                colors={previewTheme.headerColors}
+                                logoDataUri={logoDataUri}
+                                logoTooltip={model.logoTooltip}
+                                appName="Sales Hub"
+                            />
                             <div className={styles.body}>
                                 <NavBar />
-                                <div className={styles.canvas}>{selectedTab === 'view' ? <GridPreview /> : <FormPreview />}</div>
+                                <div className={styles.canvas}>
+                                    {selectedTab === 'view' ? (
+                                        <GridPreview />
+                                    ) : (
+                                        <FormPreview />
+                                    )}
+                                </div>
                             </div>
                         </FluentProvider>
                     </IdPrefixProvider>
+                </div>
+            </div>
+
+            <div className={styles.toolbar}>
+                <TabList
+                    selectedValue={selectedTab}
+                    onTabSelect={(_, data) =>
+                        setSelectedTab(data.value as PreviewTab)
+                    }
+                >
+                    <Tab value="view">View</Tab>
+                    <Tab value="form">Form</Tab>
+                </TabList>
+                <div className={styles.toolbarEnd}>
+                    <div
+                        className={mergeClasses(
+                            styles.fadeItem,
+                            styles.fadeHighlight
+                        )}
+                    >
+                        <Switch
+                            size="small"
+                            checked={highlight}
+                            onChange={(_, data) => setHighlight(data.checked)}
+                            label="Highlight themed areas"
+                            aria-label="Highlight the areas of the app the theme changes"
+                        />
+                    </div>
+                    <div
+                        className={mergeClasses(
+                            styles.fadeItem,
+                            styles.zoom,
+                            styles.fadeZoom
+                        )}
+                    >
+                        <Text size={200}>Zoom</Text>
+                        <Slider
+                            className={styles.zoomSlider}
+                            size="small"
+                            min={MIN_ZOOM}
+                            max={MAX_ZOOM}
+                            step={10}
+                            value={zoom}
+                            aria-label="Preview zoom"
+                            onChange={(_, data) => setZoom(data.value)}
+                        />
+                        <Text size={200} className={styles.zoomValue}>
+                            {zoom}%
+                        </Text>
+                    </div>
                 </div>
             </div>
         </div>

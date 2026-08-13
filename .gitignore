@@ -23,6 +23,7 @@ mono_crash.*
 [Rr]elease/
 [Rr]eleases/
 [Dd]ist/
+.playwright-mcp/
 
 
 [Dd]ebug/x64/
