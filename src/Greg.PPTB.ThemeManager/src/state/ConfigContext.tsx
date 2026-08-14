@@ -1,10 +1,32 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 import { useThemeModel } from './ThemeContext';
 import { useConnection } from '../hooks/useToolboxAPI';
-import { listWritableSolutions, type SolutionSummary } from '../services/solutions';
-import { findWebResourceByName, type WebResourceSummary } from '../services/webResources';
-import { logoSizeWarning, measureImage, readLogoDataUri } from '../services/logo';
-import { discoverScopeCapabilities, type ScopeCapabilities } from '../services/themeScope';
+import {
+    listWritableSolutions,
+    type SolutionSummary,
+} from '../services/solutions';
+import {
+    findWebResourceByName,
+    type WebResourceSummary,
+} from '../services/webResources';
+import {
+    logoSizeWarning,
+    measureImage,
+    readLogoDataUri,
+} from '../services/logo';
+import {
+    discoverScopeCapabilities,
+    type ScopeCapabilities,
+} from '../services/themeScope';
 
 /**
  * Everything the tool needs to talk to Dataverse: the active connection, the
@@ -58,70 +80,144 @@ function message(error: unknown): string {
 }
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
-    const { connection, isLoading: connectionLoading, refreshConnection } = useConnection();
+    const {
+        connection,
+        isLoading: connectionLoading,
+        refreshConnection,
+    } = useConnection();
     const { model } = useThemeModel();
 
     const [solutions, setSolutions] = useState<SolutionSummary[]>([]);
     const [solutionsLoading, setSolutionsLoading] = useState(false);
     const [solutionsError, setSolutionsError] = useState<string | undefined>();
-    const [selectedSolution, setSelectedSolution] = useState<SolutionSummary | undefined>();
+    const [selectedSolution, setSelectedSolution] = useState<
+        SolutionSummary | undefined
+    >();
 
     const [openTheme, setOpenTheme] = useState<OpenThemeResource | undefined>();
 
     const [logoDataUri, setLogoDataUri] = useState<string | undefined>();
     const [logoWarning, setLogoWarning] = useState<string | undefined>();
     const [logoLoading, setLogoLoading] = useState(false);
-    const [pendingLogo, setPendingLogoState] = useState<{ dataUri?: string; warning?: string } | undefined>();
+    const [pendingLogo, setPendingLogoState] = useState<
+        { dataUri?: string; warning?: string } | undefined
+    >();
 
     const [scope, setScope] = useState<ScopeCapabilities | undefined>();
     const [scopeLoading, setScopeLoading] = useState(false);
 
+    // Everything below is resolved per environment, so it is keyed on the
+    // connection id rather than on the connection object: the host hands out a
+    // new object on every refresh, even when the environment is unchanged.
+    const connectionId = connection?.id;
+    // Updated during render so that a request started against one environment
+    // can detect, once it resolves, that the user has already moved on.
+    const activeConnectionId = useRef(connectionId);
+    activeConnectionId.current = connectionId;
+
     const reloadSolutions = useCallback(async () => {
-        if (!connection) {
+        if (!connectionId) {
             return;
         }
         setSolutionsLoading(true);
         setSolutionsError(undefined);
         try {
             const loaded = await listWritableSolutions();
+            const remembered = await window.toolboxAPI.settings
+                .get(LAST_SOLUTION_KEY)
+                .catch(() => undefined);
+            if (activeConnectionId.current !== connectionId) {
+                return;
+            }
             setSolutions(loaded);
-
-            const remembered = await window.toolboxAPI.settings.get(LAST_SOLUTION_KEY).catch(() => undefined);
-            setSelectedSolution((current) => current ?? loaded.find((solution) => solution.uniqueName === remembered));
+            setSelectedSolution(
+                (current) =>
+                    current ??
+                    loaded.find(
+                        (solution) => solution.uniqueName === remembered
+                    )
+            );
         } catch (error) {
-            setSolutionsError(message(error));
+            if (activeConnectionId.current === connectionId) {
+                setSolutionsError(message(error));
+            }
         } finally {
-            setSolutionsLoading(false);
+            if (activeConnectionId.current === connectionId) {
+                setSolutionsLoading(false);
+            }
         }
-    }, [connection]);
+    }, [connectionId]);
 
     const refreshScope = useCallback(async () => {
-        if (!connection) {
+        if (!connectionId) {
             return;
         }
         setScopeLoading(true);
         try {
-            setScope(await discoverScopeCapabilities());
+            const capabilities = await discoverScopeCapabilities();
+            if (activeConnectionId.current === connectionId) {
+                setScope(capabilities);
+            }
         } finally {
-            setScopeLoading(false);
+            if (activeConnectionId.current === connectionId) {
+                setScopeLoading(false);
+            }
         }
-    }, [connection]);
+    }, [connectionId]);
+
+    // A connection switch (or drop) invalidates every piece of state that was
+    // read from the previous environment. The theme model itself is left alone:
+    // it is the user's work and can legitimately be saved somewhere else.
+    const knownConnectionId = useRef<string | undefined>(connectionId);
+    useEffect(() => {
+        if (knownConnectionId.current === connectionId) {
+            return;
+        }
+        knownConnectionId.current = connectionId;
+
+        setSolutions([]);
+        setSolutionsError(undefined);
+        setSelectedSolution(undefined);
+        setScope(undefined);
+        setPendingLogoState(undefined);
+        setLogoDataUri(undefined);
+        setLogoWarning(undefined);
+        setOpenTheme(undefined);
+
+        if (openTheme) {
+            void window.toolboxAPI.utils
+                .showNotification({
+                    title: 'Environment changed',
+                    body: `"${openTheme.resource.name}" was closed because the active connection changed. Your edits are kept and can be saved to the new environment.`,
+                    type: 'warning',
+                })
+                .catch(() => undefined);
+        }
+    }, [connectionId, openTheme]);
 
     useEffect(() => {
         void reloadSolutions();
         void refreshScope();
     }, [reloadSolutions, refreshScope]);
 
-    const selectSolution = useCallback((solution: SolutionSummary | undefined) => {
-        setSelectedSolution(solution);
-        if (solution) {
-            void window.toolboxAPI.settings.set(LAST_SOLUTION_KEY, solution.uniqueName).catch(() => undefined);
-        }
-    }, []);
+    const selectSolution = useCallback(
+        (solution: SolutionSummary | undefined) => {
+            setSelectedSolution(solution);
+            if (solution) {
+                void window.toolboxAPI.settings
+                    .set(LAST_SOLUTION_KEY, solution.uniqueName)
+                    .catch(() => undefined);
+            }
+        },
+        []
+    );
 
-    const setPendingLogo = useCallback((dataUri: string | undefined, warning?: string) => {
-        setPendingLogoState(dataUri ? { dataUri, warning } : undefined);
-    }, []);
+    const setPendingLogo = useCallback(
+        (dataUri: string | undefined, warning?: string) => {
+            setPendingLogoState(dataUri ? { dataUri, warning } : undefined);
+        },
+        []
+    );
 
     // Resolve the logo named in the theme into an image the preview can show.
     // A locally picked file always wins: it is what the user is looking at.
@@ -133,7 +229,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         }
 
         const name = model.logoWebResource?.trim();
-        if (!name || !connection) {
+        if (!name || !connectionId) {
             setLogoDataUri(undefined);
             setLogoWarning(undefined);
             return;
@@ -149,7 +245,9 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
                 }
                 if (!found) {
                     setLogoDataUri(undefined);
-                    setLogoWarning(`No web resource named "${name}" exists in this environment yet.`);
+                    setLogoWarning(
+                        `No web resource named "${name}" exists in this environment yet.`
+                    );
                     return;
                 }
                 const dataUri = await readLogoDataUri(found.id);
@@ -157,7 +255,11 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
                     return;
                 }
                 setLogoDataUri(dataUri);
-                setLogoWarning(dataUri ? logoSizeWarning(await measureImage(dataUri)) : undefined);
+                setLogoWarning(
+                    dataUri
+                        ? logoSizeWarning(await measureImage(dataUri))
+                        : undefined
+                );
             } catch (error) {
                 if (!cancelled) {
                     setLogoDataUri(undefined);
@@ -173,7 +275,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         return () => {
             cancelled = true;
         };
-    }, [model.logoWebResource, connection, pendingLogo]);
+    }, [model.logoWebResource, connectionId, pendingLogo]);
 
     const value = useMemo<ConfigContextValue>(
         () => ({
@@ -214,10 +316,14 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
             scope,
             scopeLoading,
             refreshScope,
-        ],
+        ]
     );
 
-    return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
+    return (
+        <ConfigContext.Provider value={value}>
+            {children}
+        </ConfigContext.Provider>
+    );
 }
 
 export function useConfig(): ConfigContextValue {

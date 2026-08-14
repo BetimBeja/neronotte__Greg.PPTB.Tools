@@ -1,0 +1,73 @@
+name: PR Validation
+
+on:
+    pull_request:
+        branches: [main]
+
+permissions:
+    contents: read
+
+jobs:
+    discover:
+        runs-on: ubuntu-latest
+        outputs:
+            tools: ${{ steps.discover.outputs.tools }}
+        steps:
+            - uses: actions/checkout@v4
+
+            # Each tool under src/<ToolName> is an independent npm project; find them
+            # dynamically so new tools are picked up without touching this workflow.
+            - name: Discover tools
+              id: discover
+              run: |
+                  tools="[]"
+                  for dir in src/*/; do
+                    if [ -f "${dir}package.json" ]; then
+                      tools=$(echo "$tools" | jq -c --arg dir "${dir%/}" '. + [$dir]')
+                    fi
+                  done
+                  if [ "$tools" = "[]" ]; then
+                    echo "No tool with a package.json found under src/*" >&2
+                    exit 1
+                  fi
+                  echo "tools=$tools" >> "$GITHUB_OUTPUT"
+
+    test:
+        needs: discover
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                tool: ${{ fromJson(needs.discover.outputs.tools) }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: npm
+                  cache-dependency-path: ${{ matrix.tool }}/package-lock.json
+
+            - name: Install dependencies
+              working-directory: ${{ matrix.tool }}
+              run: npm ci
+
+            - name: Type-check and build
+              working-directory: ${{ matrix.tool }}
+              run: npm run build
+
+            - name: Run test suite
+              working-directory: ${{ matrix.tool }}
+              run: npm test
+
+    validate-pr:
+        needs: test
+        if: always()
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check test results
+              run: |
+                  if [ "${{ needs.test.result }}" != "success" ]; then
+                    echo "::error::One or more tools failed type-checking or tests. Blocking this PR."
+                    exit 1
+                  fi
