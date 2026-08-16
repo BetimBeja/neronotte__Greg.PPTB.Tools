@@ -13,6 +13,8 @@ import {
     MessageBar,
     MessageBarBody,
     MessageBarTitle,
+    Spinner,
+    Switch,
     Text,
     makeStyles,
     tokens,
@@ -23,14 +25,15 @@ import { useThemeModel } from '../../state/ThemeContext';
 import { useConfig } from '../../state/ConfigContext';
 import {
     buildWebResourceName,
-    createWebResource,
-    publishWebResource,
     themeXmlToContent,
-    updateWebResourceContent,
     validateWebResourceName,
     WEB_RESOURCE_TYPE,
-    type WebResourceSummary,
 } from '../../services/webResources';
+import {
+    dataverseWebResourceService,
+    type WebResourceSummary,
+} from '../../services/dataverseWebResourceService';
+import { BusyButton } from '../common/BusyButton';
 
 const useStyles = makeStyles({
     body: {
@@ -75,20 +78,41 @@ function message(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
+/** Folder convention proposed for every new theme web resource. */
+const DEFAULT_LOCAL_NAME = '/theme/theme.xml';
+
+/** Platform naming rules, plus the .xml extension a theme web resource needs. */
+function validateThemeName(fullName: string): string | undefined {
+    const platformError = validateWebResourceName(fullName);
+    if (platformError) {
+        return platformError;
+    }
+    return /\.xml$/i.test(fullName.trim())
+        ? undefined
+        : 'The name must end with the .xml extension.';
+}
+
 /**
  * Saves the theme to Dataverse: updates the open web resource or creates a new
  * one in the mandatory target solution, always after showing the old-vs-new XML
  * diff, and optionally publishes it (docs/IMPLEMENTATION_PLAN.md §2.5, §2.6).
  */
-export function SaveThemeDialog({ open, onDismiss, onSaved, mountNode }: SaveThemeDialogProps) {
+export function SaveThemeDialog({
+    open,
+    onDismiss,
+    onSaved,
+    mountNode,
+}: SaveThemeDialogProps) {
     const styles = useStyles();
     const { model } = useThemeModel();
     const { openTheme, selectedSolution } = useConfig();
 
-    const [localName, setLocalName] = useState('custom-theme');
-    const [displayName, setDisplayName] = useState('Custom theme');
+    const [localName, setLocalName] = useState(DEFAULT_LOCAL_NAME);
+    const [overrideDisplayName, setOverrideDisplayName] = useState(false);
+    const [displayName, setDisplayName] = useState('');
     const [publish, setPublish] = useState(true);
     const [busy, setBusy] = useState(false);
+    const [progress, setProgress] = useState<string | undefined>();
     const [error, setError] = useState<string | undefined>();
 
     const xml = useMemo(() => {
@@ -99,10 +123,19 @@ export function SaveThemeDialog({ open, onDismiss, onSaved, mountNode }: SaveThe
         }
     }, [model]);
 
-    const diff = useMemo(() => diffLines(openTheme?.originalXml ?? '', xml), [openTheme, xml]);
+    const diff = useMemo(
+        () => diffLines(openTheme?.originalXml ?? '', xml),
+        [openTheme, xml]
+    );
     const isUpdate = Boolean(openTheme);
-    const nameError = isUpdate ? undefined : validateWebResourceName(localName);
-    const fullName = selectedSolution ? buildWebResourceName(selectedSolution.publisherPrefix, localName) : localName;
+    const fullName = selectedSolution
+        ? buildWebResourceName(selectedSolution.publisherPrefix, localName)
+        : localName;
+    // Validated on the full name: the local part legitimately starts with a
+    // slash, and it's the prefixed name the platform rules actually apply to.
+    const nameError = isUpdate ? undefined : validateThemeName(fullName);
+    const effectiveDisplayName =
+        overrideDisplayName && displayName.trim() ? displayName.trim() : fullName;
     const managed = openTheme?.resource.isManaged === true;
     const unchanged = isUpdate && !hasChanges(diff);
 
@@ -114,6 +147,7 @@ export function SaveThemeDialog({ open, onDismiss, onSaved, mountNode }: SaveThe
 
         setBusy(true);
         setError(undefined);
+        setProgress(undefined);
         try {
             let xmlToSave: string;
             try {
@@ -127,12 +161,20 @@ export function SaveThemeDialog({ open, onDismiss, onSaved, mountNode }: SaveThe
             let resource: WebResourceSummary;
 
             if (openTheme) {
-                await updateWebResourceContent(openTheme.resource, content, selectedSolution.uniqueName);
+                setProgress(
+                    `Updating "${openTheme.resource.name}" in Dataverse…`
+                );
+                await dataverseWebResourceService.updateWebResourceContent(
+                    openTheme.resource,
+                    content,
+                    selectedSolution.uniqueName
+                );
                 resource = openTheme.resource;
             } else {
-                resource = await createWebResource({
+                setProgress(`Creating "${fullName}" in Dataverse…`);
+                resource = await dataverseWebResourceService.createWebResource({
                     name: fullName,
-                    displayName: displayName.trim() || fullName,
+                    displayName: effectiveDisplayName,
                     webResourceType: WEB_RESOURCE_TYPE.xml,
                     contentBase64: content,
                     solutionUniqueName: selectedSolution.uniqueName,
@@ -140,7 +182,10 @@ export function SaveThemeDialog({ open, onDismiss, onSaved, mountNode }: SaveThe
             }
 
             if (publish) {
-                await publishWebResource(resource.id);
+                setProgress('Publishing the web resource…');
+                await dataverseWebResourceService.publishWebResource(
+                    resource.id
+                );
             }
 
             onSaved(resource, xmlToSave);
@@ -148,53 +193,126 @@ export function SaveThemeDialog({ open, onDismiss, onSaved, mountNode }: SaveThe
             setError(message(saveError));
         } finally {
             setBusy(false);
+            setProgress(undefined);
         }
     };
 
     return (
-        <Dialog open={open} onOpenChange={(_, data) => (data.open || busy ? undefined : onDismiss())}>
+        <Dialog
+            open={open}
+            onOpenChange={(_, data) =>
+                data.open || busy ? undefined : onDismiss()
+            }
+        >
             <DialogSurface mountNode={mountNode}>
                 <DialogBody>
-                    <DialogTitle>{isUpdate ? `Save "${openTheme?.resource.name}"` : 'Save as a new web resource'}</DialogTitle>
+                    <DialogTitle>
+                        {isUpdate
+                            ? `Save "${openTheme?.resource.name}"`
+                            : 'Save as a new web resource'}
+                    </DialogTitle>
                     <DialogContent className={styles.body}>
                         {!selectedSolution && (
                             <MessageBar intent="error">
                                 <MessageBarBody>
-                                    <MessageBarTitle>No solution selected</MessageBarTitle>
-                                    The theme must be saved into a solution you choose explicitly — there is no default-solution fallback.
+                                    <MessageBarTitle>
+                                        No solution selected
+                                    </MessageBarTitle>
+                                    The theme must be saved into a solution you
+                                    choose explicitly — there is no
+                                    default-solution fallback.
                                 </MessageBarBody>
                             </MessageBar>
                         )}
 
                         {managed && (
                             <MessageBar intent="error">
-                                <MessageBarBody>This web resource is managed and can't be updated. Save it as a new web resource instead.</MessageBarBody>
+                                <MessageBarBody>
+                                    This web resource is managed and can't be
+                                    updated. Save it as a new web resource
+                                    instead.
+                                </MessageBarBody>
                             </MessageBar>
                         )}
 
                         {!isUpdate && (
                             <>
-                                <Field label="Name" required validationState={nameError ? 'error' : 'none'} validationMessage={nameError}>
-                                    <Input value={localName} onChange={(_, data) => setLocalName(data.value)} />
+                                <Field
+                                    label="Name"
+                                    required
+                                    validationState={
+                                        nameError ? 'error' : 'none'
+                                    }
+                                    validationMessage={nameError}
+                                >
+                                    <Input
+                                        value={localName}
+                                        onChange={(_, data) =>
+                                            setLocalName(data.value)
+                                        }
+                                    />
                                 </Field>
                                 <Text size={200} className={styles.hint}>
-                                    Full unique name: <strong>{fullName}</strong>
-                                    {selectedSolution ? '' : ' (the publisher prefix is added once a solution is selected)'}
+                                    Full unique name:{' '}
+                                    <strong>{fullName}</strong>
+                                    {selectedSolution
+                                        ? ''
+                                        : ' (the publisher prefix is added once a solution is selected)'}
                                 </Text>
-                                <Field label="Display name">
-                                    <Input value={displayName} onChange={(_, data) => setDisplayName(data.value)} />
-                                </Field>
+                                <Switch
+                                    checked={overrideDisplayName}
+                                    onChange={(_, data) => {
+                                        setOverrideDisplayName(data.checked);
+                                        if (
+                                            data.checked &&
+                                            !displayName.trim()
+                                        ) {
+                                            setDisplayName(fullName);
+                                        }
+                                    }}
+                                    label="Override display name"
+                                />
+                                {overrideDisplayName ? (
+                                    <Field label="Display name">
+                                        <Input
+                                            value={displayName}
+                                            onChange={(_, data) =>
+                                                setDisplayName(data.value)
+                                            }
+                                        />
+                                    </Field>
+                                ) : (
+                                    <Text size={200} className={styles.hint}>
+                                        Display name:{' '}
+                                        <strong>{fullName}</strong>
+                                    </Text>
+                                )}
                             </>
                         )}
 
                         <div>
                             <Text weight="semibold" size={200}>
-                                {isUpdate ? 'Changes to be written' : 'XML to be created'}
+                                {isUpdate
+                                    ? 'Changes to be written'
+                                    : 'XML to be created'}
                             </Text>
                             <div className={styles.diff}>
                                 {diff.map((line, index) => (
-                                    <div key={index} className={line.kind === 'added' ? styles.added : line.kind === 'removed' ? styles.removed : styles.context}>
-                                        {line.kind === 'added' ? '+ ' : line.kind === 'removed' ? '- ' : '  '}
+                                    <div
+                                        key={index}
+                                        className={
+                                            line.kind === 'added'
+                                                ? styles.added
+                                                : line.kind === 'removed'
+                                                  ? styles.removed
+                                                  : styles.context
+                                        }
+                                    >
+                                        {line.kind === 'added'
+                                            ? '+ '
+                                            : line.kind === 'removed'
+                                              ? '- '
+                                              : '  '}
                                         {line.text}
                                     </div>
                                 ))}
@@ -203,21 +321,36 @@ export function SaveThemeDialog({ open, onDismiss, onSaved, mountNode }: SaveThe
 
                         {unchanged && (
                             <MessageBar intent="info">
-                                <MessageBarBody>The theme is identical to the version stored in Dataverse.</MessageBarBody>
+                                <MessageBarBody>
+                                    The theme is identical to the version stored
+                                    in Dataverse.
+                                </MessageBarBody>
                             </MessageBar>
                         )}
 
                         <Checkbox
                             checked={publish}
-                            onChange={(_, data) => setPublish(data.checked === true)}
+                            onChange={(_, data) =>
+                                setPublish(data.checked === true)
+                            }
                             label="Publish the web resource after saving"
                         />
                         <MessageBar intent="warning">
                             <MessageBarBody>
-                                Publishing affects the whole environment: every user of the apps that consume this theme sees the change. Updates are only picked up
-                                once published.
+                                Publishing affects the whole environment: every
+                                user of the apps that consume this theme sees
+                                the change. Updates are only picked up once
+                                published.
                             </MessageBarBody>
                         </MessageBar>
+
+                        {busy && (
+                            <Spinner
+                                size="tiny"
+                                labelPosition="after"
+                                label={progress ?? 'Saving to Dataverse…'}
+                            />
+                        )}
 
                         {error && (
                             <MessageBar intent="error">
@@ -226,12 +359,26 @@ export function SaveThemeDialog({ open, onDismiss, onSaved, mountNode }: SaveThe
                         )}
                     </DialogContent>
                     <DialogActions>
-                        <Button appearance="secondary" disabled={busy} onClick={onDismiss}>
+                        <Button
+                            appearance="secondary"
+                            disabled={busy}
+                            onClick={onDismiss}
+                        >
                             Cancel
                         </Button>
-                        <Button appearance="primary" disabled={busy || managed || !selectedSolution || Boolean(nameError)} onClick={handleSave}>
-                            {busy ? 'Saving…' : 'Save'}
-                        </Button>
+                        <BusyButton
+                            appearance="primary"
+                            busy={busy}
+                            busyLabel="Saving…"
+                            disabled={
+                                managed ||
+                                !selectedSolution ||
+                                Boolean(nameError)
+                            }
+                            onClick={handleSave}
+                        >
+                            Save
+                        </BusyButton>
                     </DialogActions>
                 </DialogBody>
             </DialogSurface>

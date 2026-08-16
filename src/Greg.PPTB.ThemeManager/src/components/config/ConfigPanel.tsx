@@ -18,13 +18,23 @@ import {
     makeStyles,
     tokens,
 } from '@fluentui/react-components';
-import { ArrowSyncRegular, DocumentAddRegular, FolderOpenRegular, PaintBrushRegular, SaveRegular } from '@fluentui/react-icons';
+import {
+    ArrowSyncRegular,
+    DocumentAddRegular,
+    FolderOpenRegular,
+    PaintBrushRegular,
+    SaveRegular,
+} from '@fluentui/react-icons';
 import { useConfig } from '../../state/ConfigContext';
 import { useThemeModel } from '../../state/ThemeContext';
 import { usePortalMount } from '../../state/PortalMountContext';
 import { parseThemeXml } from '../../model/themeXml';
 import { createDefaultThemeModel } from '../../model/defaults';
-import { WEB_RESOURCE_TYPE, readWebResource, webResourceXml, type WebResourceSummary } from '../../services/webResources';
+import { WEB_RESOURCE_TYPE, webResourceXml } from '../../services/webResources';
+import {
+    dataverseWebResourceService,
+    type WebResourceSummary,
+} from '../../services/dataverseWebResourceService';
 import { WebResourcePickerDialog } from './WebResourcePickerDialog';
 import { SaveThemeDialog } from './SaveThemeDialog';
 import { ScopeDialog } from './ScopeDialog';
@@ -65,7 +75,11 @@ const useStyles = makeStyles({
     },
 });
 
-async function notify(title: string, body: string, type: 'info' | 'success' | 'warning' | 'error') {
+async function notify(
+    title: string,
+    body: string,
+    type: 'info' | 'success' | 'warning' | 'error'
+) {
     try {
         await window.toolboxAPI.utils.showNotification({ title, body, type });
     } catch (error) {
@@ -105,7 +119,9 @@ export function ConfigPanel() {
     const [scopeOpen, setScopeOpen] = useState(false);
     const [loadingTheme, setLoadingTheme] = useState(false);
     // Pending action held back by the unsaved-changes guard (§2.12).
-    const [pendingAction, setPendingAction] = useState<{ run: () => void } | undefined>();
+    const [pendingAction, setPendingAction] = useState<
+        { run: () => void } | undefined
+    >();
 
     const connected = Boolean(connection);
 
@@ -121,7 +137,9 @@ export function ConfigPanel() {
         setPickerOpen(false);
         setLoadingTheme(true);
         try {
-            const content = await readWebResource(resource.id);
+            const content = await dataverseWebResourceService.readWebResource(
+                resource.id
+            );
             const xml = webResourceXml(content);
             dispatch({ type: 'load', model: parseThemeXml(xml) });
             // Keep the summary only: the base64 payload is already decoded into
@@ -129,7 +147,11 @@ export function ConfigPanel() {
             const { contentBase64: _content, ...summary } = content;
             setOpenTheme({ resource: summary, originalXml: xml });
             if (summary.isManaged) {
-                await notify('Managed web resource', `"${summary.name}" is managed: it can be inspected but not overwritten.`, 'warning');
+                await notify(
+                    'Managed web resource',
+                    `"${summary.name}" is managed: it can be inspected but not overwritten.`,
+                    'warning'
+                );
             }
         } catch (error) {
             await notify('Load failed', message(error), 'error');
@@ -148,7 +170,11 @@ export function ConfigPanel() {
         setOpenTheme({ resource, originalXml: xml });
         dispatch({ type: 'markSaved' });
         setSaveOpen(false);
-        await notify('Theme saved', `"${resource.name}" was saved to Dataverse.`, 'success');
+        await notify(
+            'Theme saved',
+            `"${resource.name}" was saved to Dataverse.`,
+            'success'
+        );
     };
 
     return (
@@ -156,8 +182,14 @@ export function ConfigPanel() {
             {!connectionLoading && !connected && (
                 <MessageBar intent="error">
                     <MessageBarBody>
-                        This tool needs an active Dataverse connection. Connect to an environment in Power Platform ToolBox, then retry.{' '}
-                        <Button size="small" appearance="transparent" icon={<ArrowSyncRegular />} onClick={() => void refreshConnection()}>
+                        This tool needs an active Dataverse connection. Connect
+                        to an environment in Power Platform ToolBox, then retry.{' '}
+                        <Button
+                            size="small"
+                            appearance="transparent"
+                            icon={<ArrowSyncRegular />}
+                            onClick={() => void refreshConnection()}
+                        >
                             Retry
                         </Button>
                     </MessageBarBody>
@@ -178,7 +210,10 @@ export function ConfigPanel() {
                     {connectionLoading ? (
                         <Spinner size="tiny" />
                     ) : (
-                        <Badge appearance="tint" color={connected ? 'success' : 'danger'}>
+                        <Badge
+                            appearance="tint"
+                            color={connected ? 'success' : 'danger'}
+                        >
                             {connection?.name ?? 'Not connected'}
                         </Badge>
                     )}
@@ -192,21 +227,48 @@ export function ConfigPanel() {
                         className={styles.solution}
                         mountNode={mountNode}
                         disabled={!connected || solutionsLoading}
-                        placeholder={solutionsLoading ? 'Loading solutions…' : 'Select a solution'}
+                        placeholder={
+                            solutionsLoading
+                                ? 'Loading solutions…'
+                                : 'Select a solution'
+                        }
                         value={selectedSolution?.friendlyName ?? ''}
-                        selectedOptions={selectedSolution ? [selectedSolution.id] : []}
-                        onOptionSelect={(_, data) => selectSolution(solutions.find((solution) => solution.id === data.optionValue))}
+                        selectedOptions={
+                            selectedSolution ? [selectedSolution.id] : []
+                        }
+                        onOptionSelect={(_, data) =>
+                            selectSolution(
+                                solutions.find(
+                                    (solution) =>
+                                        solution.id === data.optionValue
+                                )
+                            )
+                        }
                     >
                         {solutions.map((solution) => (
-                            <Option key={solution.id} value={solution.id} text={solution.friendlyName}>
+                            <Option
+                                key={solution.id}
+                                value={solution.id}
+                                text={solution.friendlyName}
+                            >
                                 {`${solution.friendlyName} (${solution.publisherPrefix || 'no prefix'})`}
                             </Option>
                         ))}
                     </Dropdown>
-                    <Tooltip content="Reload solutions" relationship="label" mountNode={mountNode}>
+                    <Tooltip
+                        content="Reload solutions"
+                        relationship="label"
+                        mountNode={mountNode}
+                    >
                         <Button
                             appearance="subtle"
-                            icon={<ArrowSyncRegular />}
+                            icon={
+                                solutionsLoading ? (
+                                    <Spinner size="tiny" />
+                                ) : (
+                                    <ArrowSyncRegular />
+                                )
+                            }
                             disabled={!connected || solutionsLoading}
                             onClick={() => void reloadSolutions()}
                             aria-label="Reload solutions"
@@ -219,16 +281,36 @@ export function ConfigPanel() {
                         Theme file
                     </Text>
                     {loadingTheme ? (
-                        <Spinner size="tiny" />
+                        <Spinner
+                            size="tiny"
+                            labelPosition="after"
+                            label="Loading theme…"
+                        />
                     ) : (
-                        <Text size={200} weight="semibold" className={styles.fileName} title={openTheme?.resource.name}>
-                            {openTheme?.resource.name ?? 'New theme (not saved)'}
+                        <Text
+                            size={200}
+                            weight="semibold"
+                            className={styles.fileName}
+                            title={openTheme?.resource.name}
+                        >
+                            {openTheme?.resource.name ??
+                                'New theme (not saved)'}
                         </Text>
                     )}
-                    <Button appearance="subtle" icon={<FolderOpenRegular />} disabled={!connected} onClick={() => guard(() => setPickerOpen(true))}>
+                    <Button
+                        appearance="subtle"
+                        icon={<FolderOpenRegular />}
+                        disabled={!connected || loadingTheme}
+                        onClick={() => guard(() => setPickerOpen(true))}
+                    >
                         Open
                     </Button>
-                    <Button appearance="subtle" icon={<DocumentAddRegular />} onClick={handleNew}>
+                    <Button
+                        appearance="subtle"
+                        icon={<DocumentAddRegular />}
+                        disabled={loadingTheme}
+                        onClick={handleNew}
+                    >
                         New
                     </Button>
                 </div>
@@ -236,10 +318,20 @@ export function ConfigPanel() {
                 <div className={styles.spacer} />
 
                 <div className={styles.group}>
-                    <Button appearance="primary" icon={<SaveRegular />} disabled={!connected} onClick={() => setSaveOpen(true)}>
+                    <Button
+                        appearance="primary"
+                        icon={<SaveRegular />}
+                        disabled={!connected || loadingTheme}
+                        onClick={() => setSaveOpen(true)}
+                    >
                         Save to Dataverse
                     </Button>
-                    <Button appearance="secondary" icon={<PaintBrushRegular />} disabled={!connected} onClick={() => setScopeOpen(true)}>
+                    <Button
+                        appearance="secondary"
+                        icon={<PaintBrushRegular />}
+                        disabled={!connected || loadingTheme}
+                        onClick={() => setScopeOpen(true)}
+                    >
                         Apply theme
                     </Button>
                 </div>
@@ -254,17 +346,40 @@ export function ConfigPanel() {
                 mountNode={mountNode}
             />
 
-            <SaveThemeDialog open={saveOpen} onDismiss={() => setSaveOpen(false)} onSaved={(resource, xml) => void handleSaved(resource, xml)} mountNode={mountNode} />
+            <SaveThemeDialog
+                open={saveOpen}
+                onDismiss={() => setSaveOpen(false)}
+                onSaved={(resource, xml) => void handleSaved(resource, xml)}
+                mountNode={mountNode}
+            />
 
-            <ScopeDialog open={scopeOpen} onDismiss={() => setScopeOpen(false)} webResourceName={openTheme?.resource.name} kind={model.kind} mountNode={mountNode} />
+            <ScopeDialog
+                open={scopeOpen}
+                onDismiss={() => setScopeOpen(false)}
+                webResourceName={openTheme?.resource.name}
+                kind={model.kind}
+                mountNode={mountNode}
+            />
 
-            <Dialog open={Boolean(pendingAction)} onOpenChange={(_, data) => (data.open ? undefined : setPendingAction(undefined))}>
+            <Dialog
+                open={Boolean(pendingAction)}
+                onOpenChange={(_, data) =>
+                    data.open ? undefined : setPendingAction(undefined)
+                }
+            >
                 <DialogSurface mountNode={mountNode}>
                     <DialogBody>
                         <DialogTitle>Discard unsaved changes?</DialogTitle>
-                        <DialogContent>The theme has changes that were never saved to Dataverse or exported to a file. Continuing discards them.</DialogContent>
+                        <DialogContent>
+                            The theme has changes that were never saved to
+                            Dataverse or exported to a file. Continuing discards
+                            them.
+                        </DialogContent>
                         <DialogActions>
-                            <Button appearance="secondary" onClick={() => setPendingAction(undefined)}>
+                            <Button
+                                appearance="secondary"
+                                onClick={() => setPendingAction(undefined)}
+                            >
                                 Keep editing
                             </Button>
                             <Button

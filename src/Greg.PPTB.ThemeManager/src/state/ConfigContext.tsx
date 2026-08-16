@@ -11,22 +11,22 @@ import {
 import { useThemeModel } from './ThemeContext';
 import { useConnection } from '../hooks/useToolboxAPI';
 import {
-    listWritableSolutions,
+    dataverseSolutionService,
     type SolutionSummary,
-} from '../services/solutions';
+} from '../services/dataverseSolutionService';
 import {
-    findWebResourceByName,
+    dataverseWebResourceService,
     type WebResourceSummary,
-} from '../services/webResources';
+} from '../services/dataverseWebResourceService';
+import {
+    dataverseThemeScopeService,
+    type ScopeCapabilities,
+} from '../services/dataverseThemeScopeService';
 import {
     logoSizeWarning,
     measureImage,
     readLogoDataUri,
 } from '../services/logo';
-import {
-    discoverScopeCapabilities,
-    type ScopeCapabilities,
-} from '../services/themeScope';
 
 /**
  * Everything the tool needs to talk to Dataverse: the active connection, the
@@ -122,7 +122,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         setSolutionsLoading(true);
         setSolutionsError(undefined);
         try {
-            const loaded = await listWritableSolutions();
+            const loaded =
+                await dataverseSolutionService.listWritableSolutions();
             const remembered = await window.toolboxAPI.settings
                 .get(LAST_SOLUTION_KEY)
                 .catch(() => undefined);
@@ -154,7 +155,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         }
         setScopeLoading(true);
         try {
-            const capabilities = await discoverScopeCapabilities();
+            const capabilities =
+                await dataverseThemeScopeService.discoverScopeCapabilities();
             if (activeConnectionId.current === connectionId) {
                 setScope(capabilities);
             }
@@ -239,7 +241,10 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         setLogoLoading(true);
         (async () => {
             try {
-                const found = await findWebResourceByName(name);
+                const found =
+                    await dataverseWebResourceService.findWebResourceByName(
+                        name
+                    );
                 if (cancelled) {
                     return;
                 }
