@@ -1,5 +1,14 @@
 import { useRef } from 'react';
-import { FluentProvider, webLightTheme, webDarkTheme, Title3, Text, makeStyles, tokens } from '@fluentui/react-components';
+import {
+    Badge,
+    FluentProvider,
+    webLightTheme,
+    webDarkTheme,
+    Title3,
+    Text,
+    makeStyles,
+    tokens,
+} from '@fluentui/react-components';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ConfigPanel } from './components/config/ConfigPanel';
 import { ThemePanel } from './components/theme/ThemePanel';
@@ -8,6 +17,7 @@ import { useHostTheme } from './hooks/useToolboxAPI';
 import { ThemeProvider } from './state/ThemeContext';
 import { ConfigProvider } from './state/ConfigContext';
 import { PortalMountProvider } from './state/PortalMountContext';
+import { version } from '../package.json';
 
 const useStyles = makeStyles({
     root: {
@@ -20,6 +30,15 @@ const useStyles = makeStyles({
     header: {
         padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalL}`,
         borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+    },
+    titleRow: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: tokens.spacingHorizontalS,
+    },
+    version: {
+        position: 'relative',
+        top: tokens.spacingVerticalXS,
     },
     subtitle: {
         color: tokens.colorNeutralForeground3,
@@ -75,8 +94,21 @@ function App() {
                 <div ref={portalMountRef} className={styles.portalHost} />
                 <PortalMountProvider mountRef={portalMountRef}>
                     <div className={styles.header}>
-                        <Title3>Theme Manager</Title3>
-                        <Text className={styles.subtitle}>Configure model-driven app themes with a WYSIWYG preview</Text>
+                        <div className={styles.titleRow}>
+                            <Title3>Theme Manager</Title3>
+                            <Badge
+                                className={styles.version}
+                                appearance="tint"
+                                color="subtle"
+                                size="small"
+                            >
+                                {`v${version}`}
+                            </Badge>
+                        </div>
+                        <Text className={styles.subtitle}>
+                            Configure model-driven app themes with a WYSIWYG
+                            preview
+                        </Text>
                     </div>
                     <ThemeProvider>
                         <ConfigProvider>

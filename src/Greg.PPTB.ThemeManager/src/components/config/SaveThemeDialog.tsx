@@ -135,7 +135,9 @@ export function SaveThemeDialog({
     // slash, and it's the prefixed name the platform rules actually apply to.
     const nameError = isUpdate ? undefined : validateThemeName(fullName);
     const effectiveDisplayName =
-        overrideDisplayName && displayName.trim() ? displayName.trim() : fullName;
+        overrideDisplayName && displayName.trim()
+            ? displayName.trim()
+            : fullName;
     const managed = openTheme?.resource.isManaged === true;
     const unchanged = isUpdate && !hasChanges(diff);
 
