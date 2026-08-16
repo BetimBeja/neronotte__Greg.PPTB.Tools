@@ -1,4 +1,4 @@
-# Greg.PPTB.ThemeManager
+# Greg.PPTB.ThemeStudio
 
 A Power Platform Toolbox tool that lets makers customize Model-Driven App
 [modern themes](https://learn.microsoft.com/en-us/power-apps/maker/model-driven-apps/modern-theme-overrides)
@@ -14,7 +14,7 @@ active development; see the plan for current status.
 ## Structure
 
 ```
-greg-pptb-thememanager/
+greg-pptb-themestudio/
 ├── docs/                         # requirements, implementation plan, theme XML reference, samples
 ├── src/
 │   ├── App.tsx                   # shell layout: config bar / preview / theme panel

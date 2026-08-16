@@ -1,7 +1,7 @@
 # Context
 
 The current repo contains a set of [Power Platform Toolbox](https://docs.powerplatformtoolbox.com/tool-development) tools.
-As of now there is one single tool, **Theme Manager**.
+As of now there is one single tool, **Theme Studio**.
 
 ## Repo struture
 
@@ -16,7 +16,7 @@ Folders:
 
 ## The tools
 
-### Theme Manager
+### Theme Studio
 
 Allows to manage Model Driven App themes with a WYSIWYG user interface.
-Also called ThemeManager or Theme Builder.
+Also called ThemeStudio (formerly Theme Manager).
