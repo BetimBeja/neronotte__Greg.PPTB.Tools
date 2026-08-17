@@ -14,7 +14,7 @@ jobs:
         outputs:
             tools: ${{ steps.discover.outputs.tools }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             # Each tool under src/<ToolName> is an independent npm project; find them
             # dynamically so new tools are picked up without touching this workflow.
@@ -41,9 +41,9 @@ jobs:
             matrix:
                 tool: ${{ fromJson(needs.discover.outputs.tools) }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v7
               with:
                   node-version: '22'
                   cache: npm
