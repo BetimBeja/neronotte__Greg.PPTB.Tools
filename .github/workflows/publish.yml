@@ -1,0 +1,116 @@
+name: Publish
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: write
+
+jobs:
+    discover:
+        runs-on: ubuntu-latest
+        outputs:
+            tools: ${{ steps.discover.outputs.tools }}
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+
+            - name: Discover tools
+              id: discover
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  BEFORE_SHA: ${{ github.event.before }}
+              run: |
+                  tools="[]"
+                  for dir in src/*/; do
+                    if [ -f "${dir}package.json" ]; then
+                      # On workflow_dispatch, include all tools.
+                      # On push, include only tools that have changed files in the push.
+                      if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+                        include=true
+                      elif [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+                        # First push to branch – treat as full publish
+                        include=true
+                      else
+                        changed=$(git diff --name-only "$BEFORE_SHA" HEAD -- "${dir}" | wc -l)
+                        include=$([ "$changed" -gt 0 ] && echo true || echo false)
+                      fi
+
+                      if [ "$include" = "true" ]; then
+                        tools=$(echo "$tools" | jq -c --arg dir "${dir%/}" '. + [$dir]')
+                      fi
+                    fi
+                  done
+                  if [ "$tools" = "[]" ]; then
+                    echo "No changed tool found – nothing to publish."
+                  fi
+                  echo "tools=$tools" >> "$GITHUB_OUTPUT"
+
+    publish:
+        needs: discover
+        if: ${{ needs.discover.outputs.tools != '[]' }}
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            max-parallel: 1
+            matrix:
+                tool: ${{ fromJson(needs.discover.outputs.tools) }}
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  fetch-depth: 0
+
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: '22'
+                  cache: npm
+                  cache-dependency-path: ${{ matrix.tool }}/package-lock.json
+                  registry-url: 'https://registry.npmjs.org'
+
+            - name: Install dependencies
+              working-directory: ${{ matrix.tool }}
+              run: npm ci
+
+            - name: Run test suite
+              working-directory: ${{ matrix.tool }}
+              run: npm test
+
+            - name: Bump patch version
+              id: bump
+              working-directory: ${{ matrix.tool }}
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  NEW_VERSION=$(npm version patch --no-git-tag-version)
+                  echo "version=${NEW_VERSION#v}" >> "$GITHUB_OUTPUT"
+                  TOOL_NAME=$(node -p "require('./package.json').name")
+                  echo "name=$TOOL_NAME" >> "$GITHUB_OUTPUT"
+
+            - name: Build
+              working-directory: ${{ matrix.tool }}
+              run: npm run build
+
+            - name: Publish to npm
+              working-directory: ${{ matrix.tool }}
+              run: npm publish --access public
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - name: Commit version bump
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git add ${{ matrix.tool }}/package.json ${{ matrix.tool }}/package-lock.json
+                  git commit -m "chore: bump ${{ steps.bump.outputs.name }} to ${{ steps.bump.outputs.version }} [skip ci]"
+                  git push
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v3
+              with:
+                  tag_name: ${{ steps.bump.outputs.name }}@${{ steps.bump.outputs.version }}
+                  name: ${{ steps.bump.outputs.name }} v${{ steps.bump.outputs.version }}
+                  generate_release_notes: true
