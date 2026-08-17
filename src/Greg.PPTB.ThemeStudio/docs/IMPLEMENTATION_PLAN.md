@@ -1,4 +1,4 @@
-# Theme Manager — Implementation Plan
+# Theme Studio — Implementation Plan
 
 Companion document to [`REQUIREMENTS.md`](./REQUIREMENTS.md).
 It records (1) the open questions and risks found while analysing the requirements and
@@ -41,7 +41,7 @@ Documents consulted:
 
 ## 1. Context: where the project stands today
 
-`src/Greg.PPTB.ThemeManager` is currently the unmodified `yo pptb` React scaffold:
+`src/Greg.PPTB.ThemeStudio` is currently the unmodified `yo pptb` React scaffold:
 
 | Item | State |
 | --- | --- |

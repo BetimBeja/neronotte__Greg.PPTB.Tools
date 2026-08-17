@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error('Theme Manager crashed:', error, errorInfo);
+        console.error('Theme Studio crashed:', error, errorInfo);
     }
 
     private handleReset = () => {
@@ -62,7 +62,7 @@ function ErrorFallback({ error, onReset }: { error: Error; onReset: () => void }
         <div className={styles.root}>
             <ErrorCircle24Regular fontSize={40} color={tokens.colorPaletteRedForeground1} />
             <Title3>Something went wrong</Title3>
-            <Text className={styles.message}>{error.message || 'An unexpected error occurred while rendering Theme Manager.'}</Text>
+            <Text className={styles.message}>{error.message || 'An unexpected error occurred while rendering Theme Studio.'}</Text>
             <Button appearance="primary" onClick={onReset}>
                 Try again
             </Button>

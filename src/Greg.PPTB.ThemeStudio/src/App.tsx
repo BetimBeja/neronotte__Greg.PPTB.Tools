@@ -95,7 +95,7 @@ function App() {
                 <PortalMountProvider mountRef={portalMountRef}>
                     <div className={styles.header}>
                         <div className={styles.titleRow}>
-                            <Title3>Theme Manager</Title3>
+                            <Title3>Theme Studio</Title3>
                             <Badge
                                 className={styles.version}
                                 appearance="tint"

@@ -119,7 +119,7 @@ export function UploadLogoDialog({
                     webResourceType: file.webResourceType,
                     contentBase64: file.contentBase64,
                     solutionUniqueName: solution.uniqueName,
-                    description: 'App header logo, uploaded by Theme Manager.',
+                    description: 'App header logo, uploaded by Theme Studio.',
                 }
             );
             await dataverseWebResourceService.publishWebResource(created.id);

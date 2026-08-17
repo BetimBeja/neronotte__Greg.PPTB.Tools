@@ -1,7 +1,7 @@
 {
-    "name": "greg-pptb-thememanager",
+    "name": "greg-pptb-themestudio",
     "version": "0.0.2",
-    "displayName": "Theme Manager",
+    "displayName": "Theme Studio",
     "description": "Configure model driven app themes with a WYSIWYG UI/UX",
     "main": "index.html",
     "icon": "icons/tool.svg",
@@ -15,8 +15,8 @@
     "license": "MIT",
     "configurations": {
         "repository": "https://github.com/neronotte/Greg.PPTB.Tools",
-        "readmeUrl": "https://raw.githubusercontent.com/neronotte/Greg.PPTB.Tools/main/src/Greg.PPTB.ThemeManager/README.md",
-        "website": "https://raw.githubusercontent.com/neronotte/Greg.PPTB.Tools/main/src/Greg.PPTB.ThemeManager/README.md"
+        "readmeUrl": "https://raw.githubusercontent.com/neronotte/Greg.PPTB.Tools/main/src/Greg.PPTB.ThemeStudio/README.md",
+        "website": "https://raw.githubusercontent.com/neronotte/Greg.PPTB.Tools/main/src/Greg.PPTB.ThemeStudio/README.md"
     },
     "engines": {
         "node": ">=18.0.0"

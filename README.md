@@ -8,9 +8,9 @@ an independent Vite/React/TypeScript project, buildable and publishable on its o
 
 ## Tools
 
-### Theme Manager
+### Theme Studio
 
-[`src/Greg.PPTB.ThemeManager`](./src/Greg.PPTB.ThemeManager) — lets makers customize Model-Driven
+[`src/Greg.PPTB.ThemeStudio`](./src/Greg.PPTB.ThemeStudio) — lets makers customize Model-Driven
 App [modern themes](https://learn.microsoft.com/en-us/power-apps/maker/model-driven-apps/modern-theme-overrides)
 with a WYSIWYG editor, instead of hand-editing theme XML and re-checking it against a live app.
 
