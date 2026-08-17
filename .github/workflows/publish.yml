@@ -16,24 +16,43 @@ jobs:
             tools: ${{ steps.discover.outputs.tools }}
         steps:
             - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
             - name: Discover tools
               id: discover
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  BEFORE_SHA: ${{ github.event.before }}
               run: |
                   tools="[]"
                   for dir in src/*/; do
                     if [ -f "${dir}package.json" ]; then
-                      tools=$(echo "$tools" | jq -c --arg dir "${dir%/}" '. + [$dir]')
+                      # On workflow_dispatch, include all tools.
+                      # On push, include only tools that have changed files in the push.
+                      if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+                        include=true
+                      elif [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+                        # First push to branch – treat as full publish
+                        include=true
+                      else
+                        changed=$(git diff --name-only "$BEFORE_SHA" HEAD -- "${dir}" | wc -l)
+                        include=$([ "$changed" -gt 0 ] && echo true || echo false)
+                      fi
+
+                      if [ "$include" = "true" ]; then
+                        tools=$(echo "$tools" | jq -c --arg dir "${dir%/}" '. + [$dir]')
+                      fi
                     fi
                   done
                   if [ "$tools" = "[]" ]; then
-                    echo "No tool with a package.json found under src/*" >&2
-                    exit 1
+                    echo "No changed tool found – nothing to publish."
                   fi
                   echo "tools=$tools" >> "$GITHUB_OUTPUT"
 
     publish:
         needs: discover
+        if: ${{ needs.discover.outputs.tools != '[]' }}
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
