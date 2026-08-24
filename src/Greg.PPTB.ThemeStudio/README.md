@@ -1,6 +1,6 @@
-# Greg.PPTB.ThemeStudio
+# Theme Studio (by \_neronotte)
 
-A Power Platform Toolbox tool that lets makers customize Model-Driven App
+A **Power Platform Toolbox tool** that lets makers customize Model-Driven App
 [modern themes](https://learn.microsoft.com/en-us/power-apps/maker/model-driven-apps/modern-theme-overrides)
 with a WYSIWYG editor: a live preview of the app shell (grid and form views)
 next to a panel for editing the theme XML (palette, typography, logo, app
@@ -73,16 +73,16 @@ The tool requires an active Dataverse connection in Power Platform ToolBox.
 
 The **Get colors from a website** button in the Palette section opens a three-step wizard:
 
-1. **Source** — type a site address and press *Open the site*, or browse for / paste (Ctrl+V) /
+1. **Source** — type a site address and press _Open the site_, or browse for / paste (Ctrl+V) /
    drag & drop a screenshot. Power Platform ToolBox exposes no screenshot API, so a URL is
-   resolved by *assisted capture*: the site opens in your browser, you take the screenshot and
+   resolved by _assisted capture_: the site opens in your browser, you take the screenshot and
    paste it back into the wizard. Nothing is uploaded and no third-party service is called.
-2. **Image** — drag on the screenshot to analyse only a region (or use *Header only*), or click a
-   single pixel to use its exact colour. Near-white, near-black and — unless you turn *Ignore
-   greys* off — near-grey pixels are treated as noise.
+2. **Image** — drag on the screenshot to analyse only a region (or use _Header only_), or click a
+   single pixel to use its exact colour. Near-white, near-black and — unless you turn _Ignore
+   greys_ off — near-grey pixels are treated as noise.
 3. **Colors & roles** — the ranked colours are shown with their coverage and mapped onto the base
    palette colour and the app header background/foreground, with the live WCAG contrast readout.
-   Everything is editable, and *Apply* is a single undoable step. Palette slot overrides are only
+   Everything is editable, and _Apply_ is a single undoable step. Palette slot overrides are only
    filled in when you explicitly ask for them.
 
 The screenshot is working data only: it is never saved to Dataverse and never stored in the
