@@ -1,6 +1,6 @@
 {
     "name": "greg-pptb-themestudio",
-    "version": "0.0.2",
+    "version": "0.1.0",
     "displayName": "Theme Studio",
     "description": "Configure model driven app themes with a WYSIWYG UI/UX",
     "main": "index.html",
@@ -53,5 +53,8 @@
     "files": [
         "dist",
         "npm-shrinkwrap.json"
-    ]
+    ],
+    "allowScripts": {
+        "esbuild@0.28.2": true
+    }
 }
