@@ -1,6 +1,6 @@
 {
     "name": "greg-pptb-themestudio",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "displayName": "Theme Studio",
     "description": "Configure model driven app themes with a WYSIWYG UI/UX",
     "main": "index.html",
