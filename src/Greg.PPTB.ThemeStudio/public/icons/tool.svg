@@ -1,10 +1,111 @@
-<svg xmlns="http://www.w3.org/2000/svg" 
-  viewBox="0 24.40999984741211 62.349998474121094 31.740001678466797" 
-  width="1000" 
-  height="1000">
-  <g fill="currentColor">
-    <g transform="scale(.8) translate(8.5 12)">
-      <path d="M4.37 51.81Q5.64 51.78 24.51 51.78Q27.05 51.78 28.00 51.71Q28.88 52.05 28.88 53.78Q28.88 56.10 27.54 56.10Q27.42 56.05 26.03 56.02Q24.63 55.98 23.32 55.98L22.00 55.96L4.88 55.96Q1.51 56.05 1.34 56.15Q0 56.15 0 53.83Q0 52.10 0.88 51.76Q1.51 51.81 4.37 51.81ZM61.55 51.34Q59.18 51.15 57.28 51.15Q56.03 51.15 54.57 51.25Q53.10 51.34 52.64 51.34Q51.81 51.34 51.81 49.49L51.81 34.86Q51.81 31.69 50.78 30.21Q49.76 28.74 48.10 28.74Q46.39 28.74 44.35 29.70Q42.31 30.66 40.53 32.15L40.53 45.02Q40.53 45.39 40.56 45.59Q40.60 45.80 40.73 46.07Q40.87 46.34 41.21 46.47Q41.55 46.61 42.09 46.61Q43.02 46.61 43.68 46.90Q44.34 47.19 44.34 47.78Q44.34 50.63 43.53 51.34Q42.04 51.15 37.94 51.15Q33.84 51.15 32.01 51.34Q31.20 50.61 31.20 47.78Q31.20 47.19 31.86 46.90Q32.52 46.61 33.45 46.61Q34.40 46.61 34.69 46.20Q34.99 45.80 34.99 45.07L34.99 31.96Q34.99 30.66 34.24 30.13Q33.50 29.59 31.37 29.49Q31.05 29.42 30.97 29.17Q30.88 28.93 30.88 28.13Q30.88 26.88 31.15 25.93Q31.42 24.98 31.69 24.83Q33.30 25.10 34.84 25.10Q35.94 25.10 37.16 24.96Q38.38 24.83 38.45 24.83Q39.31 24.83 39.56 25.26Q39.82 25.68 39.82 27.22Q39.82 27.39 39.81 27.84Q39.79 28.30 39.79 28.56Q41.89 26.71 44.56 25.56Q47.22 24.41 49.68 24.41Q53.10 24.41 55.22 26.83Q57.35 29.25 57.35 34.42L57.35 44.92Q57.35 46.51 58.57 46.61Q58.81 46.63 59.22 46.66Q59.62 46.68 59.85 46.70Q60.08 46.73 60.42 46.77Q60.77 46.80 60.96 46.84Q61.16 46.88 61.41 46.94Q61.67 47.00 61.82 47.07Q61.96 47.14 62.10 47.24Q62.23 47.34 62.29 47.47Q62.35 47.61 62.35 47.78Q62.35 50.61 61.55 51.34Z"/>
-    </g>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>Theme Studio — logo (Sunset)</title>
+
+  <defs>
+    <linearGradient id="gradRed" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#FF6B6B"/>
+      <stop offset="100%" stop-color="#E64545"/>
+    </linearGradient>
+    <linearGradient id="gradYellow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#FFA94D"/>
+      <stop offset="100%" stop-color="#F2830D"/>
+    </linearGradient>
+    <linearGradient id="gradPurple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#CC5DE8"/>
+      <stop offset="100%" stop-color="#A736C9"/>
+    </linearGradient>
+    <linearGradient id="gradBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#4DABF7"/>
+      <stop offset="100%" stop-color="#1E88E5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- <rect x="0" y="0" width="400" height="400" fill="#FFFFFF"/> -->
+
+  <!--
+    Tutte le ombre sono ora disegnate PER PRIME, prima di qualsiasi
+    quadrato: cosi' nessuna ombra puo' mai apparire sopra un quadrato
+    (l'ordine nel documento SVG e' anche l'ordine di sovrapposizione).
+    Poi vengono disegnati i 4 quadrati, con il Viola per ultimo cosi'
+    da avere sempre lo z-index piu' alto quando si solleva.
+
+    Timeline (ciclo unico condiviso, dur=2.5s, salita=discesa=0.5s
+    ciascuna, nessuna sovrapposizione tra un ciclo e il successivo):
+      Blu:     sale 0-0.5s     scende 0.5-1.0s
+      Rosso:   sale 0.5-1.0s   scende 1.0-1.5s
+      Arancio: sale 1.0-1.5s   scende 1.5-2.0s
+      Viola:   sale 1.5-2.0s   scende 2.0-2.5s
+  -->
+
+  <!-- Ombra BLU -->
+  <ellipse cx="98" cy="255" rx="52" ry="12" fill="#000000" opacity="0.24">
+    <animate attributeName="rx" values="52;35;52;52" keyTimes="0;0.2;0.4;1"
+             dur="2.5s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.24;0.09;0.24;0.24" keyTimes="0;0.2;0.4;1"
+             dur="2.5s" begin="0s" repeatCount="indefinite"/>
+  </ellipse>
+
+  <!-- Ombra ROSSO -->
+  <ellipse cx="200" cy="198" rx="50" ry="11" fill="#000000" opacity="0.22">
+    <animate attributeName="rx" values="50;50;33;50;50" keyTimes="0;0.2;0.4;0.6;1"
+             dur="2.5s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.22;0.22;0.08;0.22;0.22" keyTimes="0;0.2;0.4;0.6;1"
+             dur="2.5s" begin="0s" repeatCount="indefinite"/>
+  </ellipse>
+
+  <!-- Ombra ARANCIO -->
+  <ellipse cx="302" cy="255" rx="50" ry="11" fill="#000000" opacity="0.22">
+    <animate attributeName="rx" values="50;50;33;50;50" keyTimes="0;0.4;0.6;0.8;1"
+             dur="2.5s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.22;0.22;0.08;0.22;0.22" keyTimes="0;0.4;0.6;0.8;1"
+             dur="2.5s" begin="0s" repeatCount="indefinite"/>
+  </ellipse>
+
+  <!-- Ombra VIOLA -->
+  <ellipse cx="200" cy="312" rx="50" ry="11" fill="#000000" opacity="0.22">
+    <animate attributeName="rx" values="50;50;33;50" keyTimes="0;0.6;0.8;1"
+             dur="2.5s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.22;0.22;0.08;0.22" keyTimes="0;0.6;0.8;1"
+             dur="2.5s" begin="0s" repeatCount="indefinite"/>
+  </ellipse>
+
+  <!-- BLU (a sinistra) -->
+  <rect x="-63.65" y="-63.65" width="127.3" height="127.3"
+        fill="url(#gradBlue)" stroke="#1E88E5" stroke-width="1.5" stroke-linejoin="round"
+        transform="translate(98,200) scale(1,0.5) rotate(45)">
+    <animate attributeName="x" values="-63.65;-95.47;-63.65;-63.65" keyTimes="0;0.2;0.4;1"
+      dur="2.5s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="y" values="-63.65;-95.47;-63.65;-63.65" keyTimes="0;0.2;0.4;1"
+      dur="2.5s" begin="0s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- ROSSO (in alto) -->
+  <rect x="-63.65" y="-63.65" width="127.3" height="127.3"
+        fill="url(#gradRed)" stroke="#E64545" stroke-width="1.5" stroke-linejoin="round"
+        transform="translate(200,143) scale(1,0.5) rotate(45)">
+    <animate attributeName="x" values="-63.65;-63.65;-95.47;-63.65;-63.65" keyTimes="0;0.2;0.4;0.6;1"
+      dur="2.5s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="y" values="-63.65;-63.65;-95.47;-63.65;-63.65" keyTimes="0;0.2;0.4;0.6;1"
+      dur="2.5s" begin="0s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- ARANCIO (a destra) -->
+  <rect x="-63.65" y="-63.65" width="127.3" height="127.3"
+        fill="url(#gradYellow)" stroke="#F2830D" stroke-width="1.5" stroke-linejoin="round"
+        transform="translate(302,200) scale(1,0.5) rotate(45)">
+    <animate attributeName="x" values="-63.65;-63.65;-95.47;-63.65;-63.65" keyTimes="0;0.4;0.6;0.8;1"
+      dur="2.5s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="y" values="-63.65;-63.65;-95.47;-63.65;-63.65" keyTimes="0;0.4;0.6;0.8;1"
+      dur="2.5s" begin="0s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- VIOLA (in basso) - disegnato per ultimo: z-index piu' alto -->
+  <rect x="-63.65" y="-63.65" width="127.3" height="127.3"
+        fill="url(#gradPurple)" stroke="#A736C9" stroke-width="1.5" stroke-linejoin="round"
+        transform="translate(200,257) scale(1,0.5) rotate(45)">
+    <animate attributeName="x" values="-63.65;-63.65;-95.47;-63.65" keyTimes="0;0.6;0.8;1"
+      dur="2.5s" begin="0s" repeatCount="indefinite"/>
+    <animate attributeName="y" values="-63.65;-63.65;-95.47;-63.65" keyTimes="0;0.6;0.8;1"
+      dur="2.5s" begin="0s" repeatCount="indefinite"/>
+  </rect>
 </svg>

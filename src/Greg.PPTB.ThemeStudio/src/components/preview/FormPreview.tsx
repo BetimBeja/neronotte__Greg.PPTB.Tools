@@ -37,6 +37,7 @@ import {
     AttachRegular,
 } from '@fluentui/react-icons';
 import { SAMPLE_ACCOUNTS } from './sampleData';
+import { usePortalMount } from '../../state/PortalMountContext';
 
 const useStyles = makeStyles({
     root: {
@@ -57,9 +58,8 @@ const useStyles = makeStyles({
     formHeader: {
         display: 'flex',
         alignItems: 'center',
-        flexWrap: 'wrap',
+        flexWrap: 'nowrap',
         columnGap: tokens.spacingHorizontalL,
-        rowGap: tokens.spacingVerticalS,
         padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
     },
     titleGroup: {
@@ -69,27 +69,13 @@ const useStyles = makeStyles({
         flexShrink: 0,
         minWidth: 0,
     },
-    headerActions: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        flexWrap: 'wrap',
-        columnGap: tokens.spacingHorizontalL,
-        rowGap: tokens.spacingVerticalS,
-        flexGrow: 1,
-        minWidth: 0,
-    },
     headerFields: {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'flex-end',
         gap: tokens.spacingHorizontalM,
         flexShrink: 0,
-    },
-    headerFieldsRow: {
-        // Own row, still aligned with the commands above it.
-        flexBasis: '100%',
-        order: 1,
+        marginLeft: 'auto',
     },
     recordIcon: {
         display: 'flex',
@@ -140,6 +126,9 @@ const useStyles = makeStyles({
         justifyContent: 'flex-end',
         gap: tokens.spacingHorizontalXXS,
         flexShrink: 0,
+    },
+    commandsPushed: {
+        marginLeft: 'auto',
     },
     commandButton: {
         // Commands are sized by their label, not by the default button width.
@@ -249,8 +238,8 @@ const FORM_COMMANDS: FormCommand[] = [
 // A short record name keeps the header on one row at narrow preview widths.
 const account = { ...SAMPLE_ACCOUNTS[0], name: 'Contoso Inc.' };
 
-/** Header width below which the fields move to a row of their own. */
-const FIELDS_INLINE_MIN_WIDTH = 1100;
+/** Header width below which the header columns are dropped altogether. */
+const FIELDS_INLINE_MIN_WIDTH = 1120;
 
 /** Header width each command needs to stay in the bar, in FORM_COMMANDS order. */
 const COMMAND_MIN_WIDTHS = [560, 700, 840];
@@ -278,9 +267,10 @@ function useElementWidth<T extends HTMLElement>() {
 /** The "..." button: always present, and it collects the commands that do not fit. */
 function CommandMenu({ hidden }: { hidden: FormCommand[] }) {
     const styles = useStyles();
+    const mountNode = usePortalMount();
 
     return (
-        <Menu>
+        <Menu mountNode={mountNode}>
             <MenuTrigger disableButtonEnhancement>
                 <Button
                     className={styles.commandButton}
@@ -364,13 +354,8 @@ export function FormPreview() {
                         </div>
                     </div>
 
-                    <div className={styles.headerActions}>
-                        <div
-                            className={mergeClasses(
-                                styles.headerFields,
-                                !fieldsInline && styles.headerFieldsRow
-                            )}
-                        >
+                    {fieldsInline && (
+                        <div className={styles.headerFields}>
                             <div className={styles.headerField}>
                                 <span>{account.mainPhone}</span>
                                 <span className={styles.headerFieldLabel}>
@@ -406,41 +391,42 @@ export function FormPreview() {
                             />
                             <div className={styles.divider} />
                         </div>
+                    )}
 
-                        {/* The modern look embeds the command bar in the form header. */}
-                        <div
-                            className={styles.commands}
-                            role="toolbar"
-                            aria-label="Commands"
+                    {/* The modern look embeds the command bar in the form header. */}
+                    <div
+                        className={mergeClasses(
+                            styles.commands,
+                            !fieldsInline && styles.commandsPushed
+                        )}
+                        role="toolbar"
+                        aria-label="Commands"
+                    >
+                        {FORM_COMMANDS.slice(0, visibleCommandCount).map(
+                            (command) => (
+                                <Button
+                                    key={command.key}
+                                    className={styles.commandButton}
+                                    appearance="subtle"
+                                    icon={command.icon}
+                                >
+                                    {command.label}
+                                </Button>
+                            )
+                        )}
+                        <CommandMenu
+                            hidden={FORM_COMMANDS.slice(visibleCommandCount)}
+                        />
+                        <div className={styles.divider} />
+                        <Button
+                            className={styles.commandButton}
+                            appearance="subtle"
+                            icon={<ShareRegular />}
+                            iconPosition="before"
+                            aria-label="Share"
                         >
-                            {FORM_COMMANDS.slice(0, visibleCommandCount).map(
-                                (command) => (
-                                    <Button
-                                        key={command.key}
-                                        className={styles.commandButton}
-                                        appearance="subtle"
-                                        icon={command.icon}
-                                    >
-                                        {command.label}
-                                    </Button>
-                                )
-                            )}
-                            <CommandMenu
-                                hidden={FORM_COMMANDS.slice(
-                                    visibleCommandCount
-                                )}
-                            />
-                            <div className={styles.divider} />
-                            <Button
-                                className={styles.commandButton}
-                                appearance="subtle"
-                                icon={<ShareRegular />}
-                                iconPosition="before"
-                                aria-label="Share"
-                            >
-                                <ChevronDownRegular />
-                            </Button>
-                        </div>
+                            <ChevronDownRegular />
+                        </Button>
                     </div>
                 </div>
 
@@ -523,7 +509,7 @@ export function FormPreview() {
                             <ModelDrivenInput isDisabled value="Active" />
                         </Field>
                         <Field label="Do not allow bulk email (yes/no)">
-                            <Switch checked={false} label="No" />
+                            <Switch checked={true} label="No" />
                         </Field>
                         <Field label="Preferred contact time (option set as radio)">
                             <RadioGroup value="morning" layout="horizontal">

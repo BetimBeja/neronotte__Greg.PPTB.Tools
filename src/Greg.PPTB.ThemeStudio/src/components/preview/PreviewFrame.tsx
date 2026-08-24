@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
     FluentProvider,
     IdPrefixProvider,
@@ -13,6 +13,7 @@ import {
 } from '@fluentui/react-components';
 import { useThemeModel } from '../../state/ThemeContext';
 import { useConfig } from '../../state/ConfigContext';
+import { PortalMountProvider } from '../../state/PortalMountContext';
 import { usePersistedSetting } from '../../hooks/useToolboxAPI';
 import { AppHeader } from './shell/AppHeader';
 import { NavBar } from './shell/NavBar';
@@ -130,6 +131,16 @@ const useStyles = makeStyles({
             outlineOffset: '-2px',
         },
     },
+    // Popups opened inside the mock mount here instead of on `document.body`.
+    // It sits outside the zoom transform so it is neither scaled nor clipped.
+    portalHost: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: 0,
+        height: 0,
+        zIndex: 1000000,
+    },
 });
 
 type PreviewTab = 'view' | 'form';
@@ -156,48 +167,60 @@ export function PreviewFrame() {
     );
     const [zoom, setZoom] = usePersistedSetting('ui.previewZoom', MAX_ZOOM);
     const [highlight, setHighlight] = useState(false);
+    const portalMountRef = useRef<HTMLDivElement | null>(null);
 
     return (
         <div className={styles.root}>
-            <div className={styles.scroll}>
-                <div
-                    className={styles.scaler}
-                    style={{
-                        transform: `scale(${zoom / 100})`,
-                        width: `${(100 / zoom) * 100}%`,
-                    }}
+            <IdPrefixProvider value="preview-">
+                <FluentProvider
+                    theme={previewTheme.fluentTheme}
+                    className={styles.portalHost}
+                    style={{ fontFamily: previewTheme.fontFamily }}
                 >
-                    {/* An id prefix of its own keeps the previewed theme's generated
-                        ids from colliding with the tool's own Fluent instance. */}
-                    <IdPrefixProvider value="preview-">
-                        <FluentProvider
-                            theme={previewTheme.fluentTheme}
-                            className={mergeClasses(
-                                styles.app,
-                                highlight && styles.highlight
-                            )}
-                            style={{ fontFamily: previewTheme.fontFamily }}
-                        >
-                            <AppHeader
-                                colors={previewTheme.headerColors}
-                                logoDataUri={logoDataUri}
-                                logoTooltip={model.logoTooltip}
-                                appName="Sales Hub"
-                            />
-                            <div className={styles.body}>
-                                <NavBar />
-                                <div className={styles.canvas}>
-                                    {selectedTab === 'view' ? (
-                                        <GridPreview />
-                                    ) : (
-                                        <FormPreview />
-                                    )}
+                    <div ref={portalMountRef} />
+                </FluentProvider>
+            </IdPrefixProvider>
+            <PortalMountProvider mountRef={portalMountRef}>
+                <div className={styles.scroll}>
+                    <div
+                        className={styles.scaler}
+                        style={{
+                            transform: `scale(${zoom / 100})`,
+                            width: `${(100 / zoom) * 100}%`,
+                        }}
+                    >
+                        {/* An id prefix of its own keeps the previewed theme's generated
+                            ids from colliding with the tool's own Fluent instance. */}
+                        <IdPrefixProvider value="preview-">
+                            <FluentProvider
+                                theme={previewTheme.fluentTheme}
+                                className={mergeClasses(
+                                    styles.app,
+                                    highlight && styles.highlight
+                                )}
+                                style={{ fontFamily: previewTheme.fontFamily }}
+                            >
+                                <AppHeader
+                                    colors={previewTheme.headerColors}
+                                    logoDataUri={logoDataUri}
+                                    logoTooltip={model.logoTooltip}
+                                    appName="Sales Hub"
+                                />
+                                <div className={styles.body}>
+                                    <NavBar />
+                                    <div className={styles.canvas}>
+                                        {selectedTab === 'view' ? (
+                                            <GridPreview />
+                                        ) : (
+                                            <FormPreview />
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        </FluentProvider>
-                    </IdPrefixProvider>
+                            </FluentProvider>
+                        </IdPrefixProvider>
+                    </div>
                 </div>
-            </div>
+            </PortalMountProvider>
 
             <div className={styles.toolbar}>
                 <TabList
