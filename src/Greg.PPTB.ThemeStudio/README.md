@@ -16,37 +16,49 @@ active development; see the plan for current status.
 ```
 greg-pptb-themestudio/
 ├── docs/                         # requirements, implementation plan, theme XML reference, samples
+├── public/
+│   └── icons/
 ├── src/
 │   ├── App.tsx                   # shell layout: config bar / preview / theme panel
 │   ├── main.tsx                  # entry point
 │   ├── index.css                 # global styling
 │   ├── components/
-│   │   ├── ErrorBoundary.tsx     # top-level error boundary
-│   │   ├── config/                # ConfigPanel: solution, theme file, logo, scope
-│   │   ├── theme/                 # ThemePanel: palette/typography/logo/header editors
-│   │   └── preview/               # PreviewFrame: app shell replica, view/form preview tabs
-│   │       └── shell/             # header, navigation and command bar shared by both tabs
+│   │   ├── ErrorBoundary.tsx      # top-level error boundary
+│   │   ├── common/                # reusable UI primitives (e.g. BusyButton)
+│   │   ├── config/                # solution/theme/scope dialogs and save flow
+│   │   ├── theme/                 # palette/typography/logo/header editors
+│   │   └── preview/               # app shell replica, form/grid previews
+│   │       ├── modelDriven/       # Fluent-like input controls used in previews
+│   │       └── shell/             # header, navigation and command bar
 │   ├── model/                     # ThemeModel, XML parse/serialize, brand ramp, contrast, XML diff,
-│   │                              # colour extraction (quantiser) and role mapping
+│   │                              # color extraction and role mapping
 │   ├── services/
-│   │   ├── themeFile.ts          # theme XML import/export via the PPTB filesystem API
-│   │   ├── webResources.ts       # web resource list/read/create/update/publish + solution association
-│   │   ├── solutions.ts          # solution picker source (unmanaged, visible solutions)
-│   │   ├── themeScope.ts         # environment/app scope assignment + maker-portal fallback
-│   │   ├── logo.ts               # logo image pick/upload, size validation, data URI
-│   │   ├── imageImport.ts        # screenshot import: file / clipboard / drag & drop → pixels
-│   │   └── siteCapture.ts        # website URL validation + assisted screenshot capture
+│   │   ├── dataverseCore.ts             # Dataverse HTTP/auth helpers
+│   │   ├── dataverseSolutionService.ts  # visible unmanaged solutions
+│   │   ├── dataverseWebResourceService.ts
+│   │   ├── dataverseThemeScopeService.ts
+│   │   ├── dataverseAppService.ts       # model-driven app retrieval for scope assignment
+│   │   ├── themeFile.ts                 # local theme XML import/export
+│   │   ├── webResources.ts              # web resource workflows + publish
+│   │   ├── themeScope.ts                # environment/app scope assignment
+│   │   ├── logo.ts                      # logo image pick/upload and validation
+│   │   ├── imageImport.ts               # screenshot import (file/clipboard/drag & drop)
+│   │   └── siteCapture.ts               # URL validation + assisted screenshot capture
 │   ├── state/
 │   │   ├── ThemeContext.tsx      # theme state provider + derived palette/preview theme
 │   │   ├── ConfigContext.tsx     # connection, solution, theme web resource, logo
+│   │   ├── PortalMountContext.tsx # dialog portal mount coordination
 │   │   └── themeReducer.ts       # pure reducer: edits, undo/redo, dirty tracking
 │   └── hooks/
 │       └── useToolboxAPI.ts      # connection, host-theme and event helpers
 ├── dist/                         # build output
 ├── index.html
 ├── package.json
+├── tsconfig.node.json
+├── tsconfig.vitest.json
 ├── tsconfig.json
-└── vite.config.ts
+├── vite.config.ts
+└── vitest.config.ts
 ```
 
 ## Using the tool
@@ -61,13 +73,15 @@ The tool requires an active Dataverse connection in Power Platform ToolBox.
 3. Edit the theme in the right-hand panel — palette, typography, logo and app header colours — and
    watch the preview repaint live. Themes can also be imported from / exported to a local file.
 4. **Save to Dataverse**: the pre-save dialog shows an old-vs-new XML diff, lets you name a new web
-   resource, and optionally publishes it (publishing is required for updates to take effect and
-   affects the whole environment).
+   resource, and optionally publishes it (enabled by default). Publishing affects the whole
+   environment, and updates are only picked up after publish.
 5. **Get colors from a website** (Palette section): derive the theme from an existing site instead
    of picking every colour by hand — see below.
 6. **Apply theme**: assign the saved web resource to the whole environment or to a single app. Where
    the setting can't be written through the API, the dialog shows the unique name to paste and deep
    links into the solution in the maker portal.
+7. When opening another theme or starting a new one while there are unsaved edits, the tool asks
+   for confirmation before discarding changes.
 
 ### Getting the colors from a website
 
@@ -86,60 +100,9 @@ The **Get colors from a website** button in the Palette section opens a three-st
    filled in when you explicitly ask for them.
 
 The screenshot is working data only: it is never saved to Dataverse and never stored in the
-ToolBox settings — only the extraction options (ignore greys, colour count, slot overrides) are
-remembered.
+ToolBox settings — only the extraction options (ignore greys and slot overrides) are remembered.
 
-## Installation
-
-**Build the tool:**
-
-```bash
-npm run build
-```
-
-**Dev build with sourcemaps (watch mode):**
-
-```bash
-npm run dev-watch
-```
-
-**Run the unit tests:**
-
-```bash
-npm test
-```
-
-**Validate tool package:**
-
-```bash
-npm run validate
-```
-
-**Shrinkwrap package:**
-
-```bash
-npm run finalize-package
-```
-
-or;
-
-```bash
-npm shrinkwrap
-```
-
-**Publish new version:**
-
-```bash
-npm run publish-package
-```
-
-_Further tool development documentation is available @ https://docs.powerplatformtoolbox.com/tool-development_
-
-## Usage in ToolBox
-
-1. Build the tool using `npm run build`
-2. Install the tool in ToolBox
-3. Load and use the tool from the ToolBox interface
+Current extraction rank shows up to 5 dominant colours.
 
 ## License
 
