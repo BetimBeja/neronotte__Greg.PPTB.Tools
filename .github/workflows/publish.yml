@@ -71,6 +71,11 @@ jobs:
                   cache-dependency-path: ${{ matrix.tool }}/package-lock.json
                   registry-url: 'https://registry.npmjs.org'
 
+            - name: Use npm 11
+              run: |
+                  npm install -g npm@11
+                  npm --version
+
             - name: Install dependencies
               working-directory: ${{ matrix.tool }}
               run: npm ci
