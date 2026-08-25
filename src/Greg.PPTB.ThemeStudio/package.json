@@ -28,7 +28,7 @@
         "dev-watch": "vite build --mode development --watch",
         "preview": "vite preview",
         "test": "vitest run",
-        "finalize-package": "npm shrinkwrap",
+        "finalize-package": "npm install --package-lock-only --ignore-scripts && node -e \"require('node:fs').copyFileSync('package-lock.json','npm-shrinkwrap.json')\"",
         "validate": "pptb-validate",
         "version-stable": "npm version patch --no-git-tag-version",
         "publish-package": "npm run build && npm run version-stable && npm publish --access public"
