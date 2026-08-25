@@ -121,12 +121,6 @@ npm run validate
 npm run finalize-package
 ```
 
-or;
-
-```bash
-npm shrinkwrap
-```
-
 **Publish new version:**
 
 ```bash
