@@ -54,9 +54,25 @@ function matchesDisplayName(
     );
 }
 
+/** Escapes a string for safe use as an XML attribute value. */
+function xmlAttrEscape(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 /**
  * Probes the environment for the two theme setting definitions. Never throws:
  * a failure simply means the deep-link fallback has to be used.
+ *
+ * Discovery runs in two passes to handle both small and large environments:
+ * 1. An OData query with $top=500 (fast, covers most environments).
+ * 2. A FetchXML query with server-side display-name filtering for any
+ *    definitions still missing after pass 1 — this works even when there are
+ *    more than 500 setting definitions in the environment, and avoids
+ *    paging through the full set.
  */
 async function discoverScopeCapabilities(): Promise<ScopeCapabilities> {
     try {
@@ -79,6 +95,45 @@ async function discoverScopeCapabilities(): Promise<ScopeCapabilities> {
                     uniqueName: asString(record.uniquename),
                     displayName: asString(record.displayname),
                 };
+            }
+        }
+
+        // Pass 2: for any definitions still missing, try a targeted FetchXML
+        // query so the $top=500 limit on pass 1 can't hide them.
+        const stillMissing = (
+            Object.keys(THEME_SETTING_DISPLAY_NAMES) as ThemeSettingKind[]
+        ).filter((kind) => !definitions[kind]);
+
+        if (stillMissing.length > 0) {
+            try {
+                const conditions = stillMissing
+                    .map(
+                        (kind) =>
+                            `<condition attribute="displayname" operator="eq" value="${xmlAttrEscape(THEME_SETTING_DISPLAY_NAMES[kind])}" />`
+                    )
+                    .join('');
+                const fetchXml = `<fetch><entity name="settingdefinition"><attribute name="settingdefinitionid" /><attribute name="uniquename" /><attribute name="displayname" /><filter type="or">${conditions}</filter></entity></fetch>`;
+                const fallback =
+                    await window.dataverseAPI.fetchXmlQuery(fetchXml);
+                for (const kind of stillMissing) {
+                    const record = fallback.value.find((candidate) =>
+                        matchesDisplayName(
+                            candidate,
+                            THEME_SETTING_DISPLAY_NAMES[kind]
+                        )
+                    );
+                    if (record) {
+                        definitions[kind] = {
+                            id: asString(record.settingdefinitionid),
+                            uniqueName: asString(record.uniquename),
+                            displayName: asString(record.displayname),
+                        };
+                    }
+                }
+            } catch {
+                // If the FetchXML fallback also fails, carry on with whatever
+                // pass 1 found — the caller degrades gracefully to the
+                // maker-portal deep link.
             }
         }
 

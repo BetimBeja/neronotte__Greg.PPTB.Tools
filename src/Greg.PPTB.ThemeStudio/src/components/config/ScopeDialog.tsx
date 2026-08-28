@@ -20,7 +20,7 @@ import {
     makeStyles,
     tokens,
 } from '@fluentui/react-components';
-import { CopyRegular } from '@fluentui/react-icons';
+import { ArrowSyncRegular, CopyRegular, OpenRegular } from '@fluentui/react-icons';
 import { useConfig } from '../../state/ConfigContext';
 import {
     dataverseAppService,
@@ -79,7 +79,7 @@ export function ScopeDialog({
     mountNode,
 }: ScopeDialogProps) {
     const styles = useStyles();
-    const { connection, scope, scopeLoading, selectedSolution } = useConfig();
+    const { connection, scope, scopeLoading, selectedSolution, refreshScope } = useConfig();
 
     const [target, setTarget] = useState<'environment' | 'app'>('environment');
     const [apps, setApps] = useState<AppSummary[]>([]);
@@ -263,26 +263,50 @@ export function ScopeDialog({
                         )}
 
                         {!scopeLoading && !apiAvailable && (
-                            <MessageBar intent="warning">
-                                <MessageBarBody>
-                                    <MessageBarTitle>
-                                        Assign the setting in the maker portal
-                                    </MessageBarTitle>
-                                    {scope?.unavailableReason ??
-                                        'The theme settings are not available through the API in this environment.'}{' '}
-                                    Open the solution, use
-                                    <strong>
-                                        {' '}
-                                        Add existing → More → Setting
-                                    </strong>
-                                    , pick{' '}
-                                    <strong>
-                                        {THEME_SETTING_DISPLAY_NAMES[kind]}
-                                    </strong>
-                                    , paste the unique name above as the setting
-                                    value, and publish all customizations.
-                                </MessageBarBody>
-                            </MessageBar>
+                            <>
+                                <MessageBar intent="warning">
+                                    <MessageBarBody>
+                                        <MessageBarTitle>
+                                            Assign the setting in the maker portal
+                                        </MessageBarTitle>
+                                        {scope?.unavailableReason ??
+                                            'The theme settings are not available through the API in this environment.'}{' '}
+                                        Open the solution, use
+                                        <strong>
+                                            {' '}
+                                            Add existing → More → Setting
+                                        </strong>
+                                        , pick{' '}
+                                        <strong>
+                                            {THEME_SETTING_DISPLAY_NAMES[kind]}
+                                        </strong>
+                                        , paste the unique name above as the setting
+                                        value, and publish all customizations.
+                                    </MessageBarBody>
+                                </MessageBar>
+                                {connection && selectedSolution && (
+                                    <div className={styles.row}>
+                                        <Button
+                                            size="small"
+                                            appearance="secondary"
+                                            icon={<OpenRegular />}
+                                            onClick={handleOpenInMaker}
+                                        >
+                                            Open solution in maker portal
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            appearance="subtle"
+                                            icon={<ArrowSyncRegular />}
+                                            onClick={() =>
+                                                void refreshScope()
+                                            }
+                                        >
+                                            Refresh
+                                        </Button>
+                                    </div>
+                                )}
+                            </>
                         )}
 
                         {apiAvailable && (
