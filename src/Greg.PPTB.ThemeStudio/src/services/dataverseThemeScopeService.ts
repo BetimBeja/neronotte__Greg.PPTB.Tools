@@ -14,7 +14,7 @@ export type ThemeSettingKind = 'customTheme' | 'appHeaderColorsOnly';
 /** Display names of the two theme settings, as shown in the maker portal. */
 export const THEME_SETTING_DISPLAY_NAMES: Record<ThemeSettingKind, string> = {
     customTheme: 'Custom theme definition',
-    appHeaderColorsOnly: 'Override app header color',
+    appHeaderColorsOnly: 'Override app header colors',
 };
 
 export interface SettingDefinitionRef {
