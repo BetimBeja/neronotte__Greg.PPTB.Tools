@@ -64,6 +64,18 @@ function message(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
+async function notifySuccess(title: string, body: string) {
+    try {
+        await window.toolboxAPI.utils.showNotification({
+            title,
+            body,
+            type: 'success',
+        });
+    } catch (error) {
+        console.error('Unable to show a notification:', error);
+    }
+}
+
 /**
  * Assigns the theme to the whole environment or to a single app entirely via
  * the Dataverse API (docs/IMPLEMENTATION_PLAN.md §2.4).
@@ -91,7 +103,6 @@ export function ScopeDialog({
     const [busy, setBusy] = useState(false);
     const [progress, setProgress] = useState<string | undefined>();
     const [error, setError] = useState<string | undefined>();
-    const [status, setStatus] = useState<string | undefined>();
     const [conflict, setConflict] = useState(false);
 
     const definition = scope?.definitions[kind];
@@ -104,7 +115,6 @@ export function ScopeDialog({
             return;
         }
         setError(undefined);
-        setStatus(undefined);
         setAppsLoading(true);
         let cancelled = false;
 
@@ -152,7 +162,6 @@ export function ScopeDialog({
         }
         setBusy(true);
         setError(undefined);
-        setStatus(undefined);
         setProgress(undefined);
 
         try {
@@ -193,9 +202,11 @@ export function ScopeDialog({
                     activeDefinition,
                     webResourceName
                 );
-                setStatus(
+                await notifySuccess(
+                    'Theme applied',
                     `"${THEME_SETTING_DISPLAY_NAMES[kind]}" is now set to ${webResourceName} for the whole environment.`
                 );
+                onDismiss();
             } else if (appId) {
                 setProgress('Writing the per-app setting value…');
                 await dataverseThemeScopeService.setAppScope(
@@ -203,9 +214,11 @@ export function ScopeDialog({
                     appId,
                     webResourceName
                 );
-                setStatus(
+                await notifySuccess(
+                    'Theme applied',
                     `"${THEME_SETTING_DISPLAY_NAMES[kind]}" is now set to ${webResourceName} for the selected app.`
                 );
+                onDismiss();
             } else {
                 throw new Error('Select the app the theme should apply to.');
             }
@@ -337,12 +350,6 @@ export function ScopeDialog({
                             </Field>
                         )}
 
-                        {status && (
-                            <MessageBar intent="success">
-                                <MessageBarBody>{status}</MessageBarBody>
-                            </MessageBar>
-                        )}
-
                         {error && (
                             <MessageBar intent="error">
                                 <MessageBarBody>{error}</MessageBarBody>
@@ -354,7 +361,8 @@ export function ScopeDialog({
                                 size="tiny"
                                 labelPosition="after"
                                 label={
-                                    progress ?? 'Applying the theme in Dataverse…'
+                                    progress ??
+                                    'Applying the theme in Dataverse…'
                                 }
                             />
                         )}
@@ -378,8 +386,7 @@ export function ScopeDialog({
                             busy={busy}
                             busyLabel="Applying…"
                             disabled={
-                                !webResourceName ||
-                                (target === 'app' && !appId)
+                                !webResourceName || (target === 'app' && !appId)
                             }
                             onClick={handleApply}
                         >

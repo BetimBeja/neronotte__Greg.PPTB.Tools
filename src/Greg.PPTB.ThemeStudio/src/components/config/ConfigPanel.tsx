@@ -117,6 +117,7 @@ export function ConfigPanel() {
     const [pickerOpen, setPickerOpen] = useState(false);
     const [saveOpen, setSaveOpen] = useState(false);
     const [scopeOpen, setScopeOpen] = useState(false);
+    const [noSolutionOpen, setNoSolutionOpen] = useState(false);
     const [loadingTheme, setLoadingTheme] = useState(false);
     // Pending action held back by the unsaved-changes guard (§2.12).
     const [pendingAction, setPendingAction] = useState<
@@ -165,6 +166,14 @@ export function ConfigPanel() {
             dispatch({ type: 'load', model: createDefaultThemeModel() });
             setOpenTheme(undefined);
         });
+
+    const handleSaveClick = () => {
+        if (!selectedSolution) {
+            setNoSolutionOpen(true);
+            return;
+        }
+        setSaveOpen(true);
+    };
 
     const handleSaved = async (resource: WebResourceSummary, xml: string) => {
         setOpenTheme({ resource, originalXml: xml });
@@ -322,7 +331,7 @@ export function ConfigPanel() {
                         appearance="primary"
                         icon={<SaveRegular />}
                         disabled={!connected || loadingTheme}
-                        onClick={() => setSaveOpen(true)}
+                        onClick={handleSaveClick}
                     >
                         Save to Dataverse
                     </Button>
@@ -360,6 +369,29 @@ export function ConfigPanel() {
                 kind={model.kind}
                 mountNode={mountNode}
             />
+
+            <Dialog
+                open={noSolutionOpen}
+                onOpenChange={(_, data) => setNoSolutionOpen(data.open)}
+            >
+                <DialogSurface mountNode={mountNode}>
+                    <DialogBody>
+                        <DialogTitle>No solution selected</DialogTitle>
+                        <DialogContent>
+                            Select a solution first, using the dropdown combo on
+                            the left, then try saving again.
+                        </DialogContent>
+                        <DialogActions>
+                            <Button
+                                appearance="primary"
+                                onClick={() => setNoSolutionOpen(false)}
+                            >
+                                OK
+                            </Button>
+                        </DialogActions>
+                    </DialogBody>
+                </DialogSurface>
+            </Dialog>
 
             <Dialog
                 open={Boolean(pendingAction)}
