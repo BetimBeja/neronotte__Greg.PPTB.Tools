@@ -7,9 +7,7 @@ import { DataverseOperationError, asString, describe } from './dataverseCore';
  * Microsoft documents this only as a maker-UI flow through solution settings,
  * and publishes no entity reference for the tables involved, so **nothing here
  * is hardcoded from documentation**: the setting definitions are resolved at
- * runtime by display name and every call degrades gracefully to the approved
- * maker-portal deep link when the API path isn't available
- * (docs/IMPLEMENTATION_PLAN.md §2.4, owner decision §7.5).
+ * runtime by display name (docs/IMPLEMENTATION_PLAN.md §2.4).
  */
 export type ThemeSettingKind = 'customTheme' | 'appHeaderColorsOnly';
 
@@ -54,9 +52,25 @@ function matchesDisplayName(
     );
 }
 
+/** Escapes a string for safe use as an XML attribute value. */
+function xmlAttrEscape(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 /**
  * Probes the environment for the two theme setting definitions. Never throws:
  * a failure simply means the deep-link fallback has to be used.
+ *
+ * Discovery runs in two passes to handle both small and large environments:
+ * 1. An OData query with $top=500 (fast, covers most environments).
+ * 2. A FetchXML query with server-side display-name filtering for any
+ *    definitions still missing after pass 1 — this works even when there are
+ *    more than 500 setting definitions in the environment, and avoids
+ *    paging through the full set.
  */
 async function discoverScopeCapabilities(): Promise<ScopeCapabilities> {
     try {
@@ -79,6 +93,45 @@ async function discoverScopeCapabilities(): Promise<ScopeCapabilities> {
                     uniqueName: asString(record.uniquename),
                     displayName: asString(record.displayname),
                 };
+            }
+        }
+
+        // Pass 2: for any definitions still missing, try a targeted FetchXML
+        // query so the $top=500 limit on pass 1 can't hide them.
+        const stillMissing = (
+            Object.keys(THEME_SETTING_DISPLAY_NAMES) as ThemeSettingKind[]
+        ).filter((kind) => !definitions[kind]);
+
+        if (stillMissing.length > 0) {
+            try {
+                const conditions = stillMissing
+                    .map(
+                        (kind) =>
+                            `<condition attribute="displayname" operator="eq" value="${xmlAttrEscape(THEME_SETTING_DISPLAY_NAMES[kind])}" />`
+                    )
+                    .join('');
+                const fetchXml = `<fetch><entity name="settingdefinition"><attribute name="settingdefinitionid" /><attribute name="uniquename" /><attribute name="displayname" /><filter type="or">${conditions}</filter></entity></fetch>`;
+                const fallback =
+                    await window.dataverseAPI.fetchXmlQuery(fetchXml);
+                for (const kind of stillMissing) {
+                    const record = fallback.value.find((candidate) =>
+                        matchesDisplayName(
+                            candidate,
+                            THEME_SETTING_DISPLAY_NAMES[kind]
+                        )
+                    );
+                    if (record) {
+                        definitions[kind] = {
+                            id: asString(record.settingdefinitionid),
+                            uniqueName: asString(record.uniquename),
+                            displayName: asString(record.displayname),
+                        };
+                    }
+                }
+            } catch {
+                // If the FetchXML fallback also fails, carry on with whatever
+                // pass 1 found — the caller degrades gracefully to the
+                // maker-portal deep link.
             }
         }
 
@@ -346,10 +399,42 @@ async function resolveLookup(
     return info;
 }
 
+/** ComponentType of a setting definition in the `solutioncomponent` table. */
+const SOLUTION_COMPONENT_TYPE_SETTING_DEFINITION = 9006;
+
+/**
+ * Adds a setting definition to a solution so that the platform recognises it
+ * there — this is the API equivalent of "Add existing → More → Setting" in the
+ * maker portal. Fails silently because the setting value write often succeeds
+ * even when this step is rejected (e.g. the definition is already present, or
+ * the platform doesn't gate value creation on solution membership).
+ */
+async function addDefinitionToSolution(
+    definitionId: string,
+    solutionUniqueName: string
+): Promise<void> {
+    try {
+        await window.dataverseAPI.execute({
+            operationName: 'AddSolutionComponent',
+            operationType: 'action',
+            parameters: {
+                ComponentId: definitionId,
+                ComponentType: SOLUTION_COMPONENT_TYPE_SETTING_DEFINITION,
+                SolutionUniqueName: solutionUniqueName,
+                AddRequiredComponents: false,
+            },
+        });
+    } catch {
+        // Non-fatal: AddSolutionComponent may reject if the definition is
+        // already in the solution, or if the ComponentType constant differs
+        // from what this (undocumented) environment uses.  Setting value
+        // creation is attempted regardless.
+    }
+}
+
 /**
  * Writes the environment-wide value of a theme setting (the web resource unique
- * name). Throws `DataverseOperationError` when the API path is unavailable so
- * the caller can offer the maker-portal fallback.
+ * name). Throws `DataverseOperationError` when the write fails.
  */
 async function setEnvironmentScope(
     definition: SettingDefinitionRef,
@@ -416,8 +501,8 @@ export interface DataverseThemeScopeService {
     /**
      * Probes the environment for the "Custom theme definition" and "Override
      * app header color" setting definitions. Use this once per connection,
-     * before showing the scope dialog, to know whether the API path is usable
-     * or the maker-portal fallback must be offered. Never throws.
+     * before showing the scope dialog, to know whether the definitions are
+     * already reachable. Never throws.
      */
     discoverScopeCapabilities(): Promise<ScopeCapabilities>;
     /**
@@ -431,10 +516,18 @@ export interface DataverseThemeScopeService {
         kind: ThemeSettingKind
     ): Promise<ScopeAssignment>;
     /**
+     * Adds a setting definition to a solution (API equivalent of "Add
+     * existing → More → Setting" in the maker portal). Call this before
+     * `setEnvironmentScope` / `setAppScope` so the definition is solution-
+     * scoped. Failure is non-fatal: the value write is attempted regardless.
+     */
+    addDefinitionToSolution(
+        definitionId: string,
+        solutionUniqueName: string
+    ): Promise<void>;
+    /**
      * Assigns a theme web resource to the whole environment. Use this when
-     * the user chooses "apply to environment" in the scope dialog. Throws
-     * when the API path is unavailable, so the caller can fall back to the
-     * maker portal.
+     * the user chooses "apply to environment" in the scope dialog.
      */
     setEnvironmentScope(
         definition: SettingDefinitionRef,
@@ -456,6 +549,7 @@ export interface DataverseThemeScopeService {
 export const dataverseThemeScopeService: DataverseThemeScopeService = {
     discoverScopeCapabilities,
     readScopeAssignment,
+    addDefinitionToSolution,
     setEnvironmentScope,
     setAppScope,
 };

@@ -29,9 +29,9 @@ import {
 import {
     dataverseThemeScopeService,
     THEME_SETTING_DISPLAY_NAMES,
+    type SettingDefinitionRef,
     type ThemeSettingKind,
 } from '../../services/dataverseThemeScopeService';
-import { openSolutionInMaker } from '../../services/themeScope';
 import { BusyButton } from '../common/BusyButton';
 
 const useStyles = makeStyles({
@@ -65,11 +65,14 @@ function message(error: unknown): string {
 }
 
 /**
- * Assigns the theme to the whole environment or to a single app.
+ * Assigns the theme to the whole environment or to a single app entirely via
+ * the Dataverse API (docs/IMPLEMENTATION_PLAN.md §2.4).
  *
- * Microsoft documents this only as a maker-portal flow, so the tool discovers
- * the setting definitions at runtime and falls back to a deep link into the
- * solution when they can't be written (docs/IMPLEMENTATION_PLAN.md §2.4).
+ * When the setting definition is not yet visible through the background
+ * discovery, Apply re-runs discovery inline and then calls
+ * `AddSolutionComponent` to add it to the selected solution before writing the
+ * setting value — replicating the "Add existing → More → Setting" maker-portal
+ * flow without requiring the user to leave the tool.
  */
 export function ScopeDialog({
     open,
@@ -86,9 +89,8 @@ export function ScopeDialog({
     const [appsLoading, setAppsLoading] = useState(false);
     const [appId, setAppId] = useState<string | undefined>();
     const [busy, setBusy] = useState(false);
+    const [progress, setProgress] = useState<string | undefined>();
     const [error, setError] = useState<string | undefined>();
-    /** True once an Apply attempt failed — offers the maker-portal escape hatch. */
-    const [applyFailed, setApplyFailed] = useState(false);
     const [status, setStatus] = useState<string | undefined>();
     const [conflict, setConflict] = useState(false);
 
@@ -145,25 +147,59 @@ export function ScopeDialog({
     }, [open, connection, otherDefinition, otherKind]);
 
     const handleApply = async () => {
-        if (!definition || !webResourceName) {
+        if (!webResourceName) {
             return;
         }
         setBusy(true);
         setError(undefined);
-        setApplyFailed(false);
         setStatus(undefined);
+        setProgress(undefined);
+
         try {
+            // Use the pre-discovered definition when available; otherwise
+            // re-run discovery inline so the user doesn't have to close and
+            // reopen the dialog just because the background probe ran before
+            // the setting was visible in this environment.
+            let activeDefinition: SettingDefinitionRef | undefined = definition;
+            if (!activeDefinition) {
+                setProgress('Discovering the setting definition…');
+                const freshCapabilities =
+                    await dataverseThemeScopeService.discoverScopeCapabilities();
+                activeDefinition = freshCapabilities.definitions[kind];
+                if (!activeDefinition) {
+                    throw new Error(
+                        `The "${THEME_SETTING_DISPLAY_NAMES[kind]}" setting definition could not be found in this environment. ` +
+                            `The feature may not be available in this version of Power Platform.`
+                    );
+                }
+            }
+
+            // Add the setting definition to the selected solution — this is the
+            // API equivalent of "Add existing → More → Setting" in the maker
+            // portal.  Failure is non-fatal (see addDefinitionToSolution).
+            if (selectedSolution) {
+                setProgress(
+                    `Adding the setting to solution "${selectedSolution.friendlyName}"…`
+                );
+                await dataverseThemeScopeService.addDefinitionToSolution(
+                    activeDefinition.id,
+                    selectedSolution.uniqueName
+                );
+            }
+
             if (target === 'environment') {
+                setProgress('Writing the environment-wide setting value…');
                 await dataverseThemeScopeService.setEnvironmentScope(
-                    definition,
+                    activeDefinition,
                     webResourceName
                 );
                 setStatus(
                     `"${THEME_SETTING_DISPLAY_NAMES[kind]}" is now set to ${webResourceName} for the whole environment.`
                 );
             } else if (appId) {
+                setProgress('Writing the per-app setting value…');
                 await dataverseThemeScopeService.setAppScope(
-                    definition,
+                    activeDefinition,
                     appId,
                     webResourceName
                 );
@@ -171,24 +207,13 @@ export function ScopeDialog({
                     `"${THEME_SETTING_DISPLAY_NAMES[kind]}" is now set to ${webResourceName} for the selected app.`
                 );
             } else {
-                setError('Select the app the theme should apply to.');
+                throw new Error('Select the app the theme should apply to.');
             }
         } catch (applyError) {
             setError(message(applyError));
-            setApplyFailed(true);
         } finally {
             setBusy(false);
-        }
-    };
-
-    const handleOpenInMaker = async () => {
-        if (!connection || !selectedSolution) {
-            return;
-        }
-        try {
-            await openSolutionInMaker(connection.url, selectedSolution.id);
-        } catch (openError) {
-            setError(message(openError));
+            setProgress(undefined);
         }
     };
 
@@ -199,8 +224,6 @@ export function ScopeDialog({
                 .catch(() => undefined);
         }
     };
-
-    const apiAvailable = Boolean(definition);
 
     return (
         <Dialog
@@ -262,88 +285,56 @@ export function ScopeDialog({
                             />
                         )}
 
-                        {!scopeLoading && !apiAvailable && (
-                            <MessageBar intent="warning">
-                                <MessageBarBody>
-                                    <MessageBarTitle>
-                                        Assign the setting in the maker portal
-                                    </MessageBarTitle>
-                                    {scope?.unavailableReason ??
-                                        'The theme settings are not available through the API in this environment.'}{' '}
-                                    Open the solution, use
-                                    <strong>
-                                        {' '}
-                                        Add existing → More → Setting
-                                    </strong>
-                                    , pick{' '}
-                                    <strong>
-                                        {THEME_SETTING_DISPLAY_NAMES[kind]}
-                                    </strong>
-                                    , paste the unique name above as the setting
-                                    value, and publish all customizations.
-                                </MessageBarBody>
-                            </MessageBar>
-                        )}
+                        <Field label="Scope">
+                            <RadioGroup
+                                value={target}
+                                onChange={(_, data) =>
+                                    setTarget(
+                                        data.value as 'environment' | 'app'
+                                    )
+                                }
+                            >
+                                <Radio
+                                    value="environment"
+                                    label="The whole environment"
+                                />
+                                <Radio
+                                    value="app"
+                                    label="A single model-driven app"
+                                />
+                            </RadioGroup>
+                        </Field>
 
-                        {apiAvailable && (
-                            <>
-                                <Field label="Scope">
-                                    <RadioGroup
-                                        value={target}
-                                        onChange={(_, data) =>
-                                            setTarget(
-                                                data.value as
-                                                    | 'environment'
-                                                    | 'app'
-                                            )
-                                        }
-                                    >
-                                        <Radio
-                                            value="environment"
-                                            label="The whole environment"
-                                        />
-                                        <Radio
-                                            value="app"
-                                            label="A single model-driven app"
-                                        />
-                                    </RadioGroup>
-                                </Field>
-
-                                {target === 'app' && (
-                                    <Field label="App" required>
-                                        <Dropdown
-                                            mountNode={mountNode}
-                                            disabled={appsLoading}
-                                            placeholder={
-                                                appsLoading
-                                                    ? 'Loading apps…'
-                                                    : 'Select an app'
-                                            }
-                                            value={
-                                                apps.find(
-                                                    (app) => app.id === appId
-                                                )?.name ?? ''
-                                            }
-                                            selectedOptions={
-                                                appId ? [appId] : []
-                                            }
-                                            onOptionSelect={(_, data) =>
-                                                setAppId(data.optionValue)
-                                            }
+                        {target === 'app' && (
+                            <Field label="App" required>
+                                <Dropdown
+                                    mountNode={mountNode}
+                                    disabled={appsLoading}
+                                    placeholder={
+                                        appsLoading
+                                            ? 'Loading apps…'
+                                            : 'Select an app'
+                                    }
+                                    value={
+                                        apps.find((app) => app.id === appId)
+                                            ?.name ?? ''
+                                    }
+                                    selectedOptions={appId ? [appId] : []}
+                                    onOptionSelect={(_, data) =>
+                                        setAppId(data.optionValue)
+                                    }
+                                >
+                                    {apps.map((app) => (
+                                        <Option
+                                            key={app.id}
+                                            value={app.id}
+                                            text={app.name}
                                         >
-                                            {apps.map((app) => (
-                                                <Option
-                                                    key={app.id}
-                                                    value={app.id}
-                                                    text={app.name}
-                                                >
-                                                    {app.name}
-                                                </Option>
-                                            ))}
-                                        </Dropdown>
-                                    </Field>
-                                )}
-                            </>
+                                            {app.name}
+                                        </Option>
+                                    ))}
+                                </Dropdown>
+                            </Field>
                         )}
 
                         {status && (
@@ -354,26 +345,7 @@ export function ScopeDialog({
 
                         {error && (
                             <MessageBar intent="error">
-                                <MessageBarBody>
-                                    {error}
-                                    {applyFailed &&
-                                        connection &&
-                                        selectedSolution && (
-                                            <>
-                                                {' '}
-                                                You can also{' '}
-                                                <Button
-                                                    size="small"
-                                                    appearance="transparent"
-                                                    onClick={handleOpenInMaker}
-                                                >
-                                                    open the solution in the
-                                                    maker portal
-                                                </Button>{' '}
-                                                and set it there.
-                                            </>
-                                        )}
-                                </MessageBarBody>
+                                <MessageBarBody>{error}</MessageBarBody>
                             </MessageBar>
                         )}
 
@@ -381,7 +353,9 @@ export function ScopeDialog({
                             <Spinner
                                 size="tiny"
                                 labelPosition="after"
-                                label="Applying the theme in Dataverse…"
+                                label={
+                                    progress ?? 'Applying the theme in Dataverse…'
+                                }
                             />
                         )}
 
@@ -404,7 +378,6 @@ export function ScopeDialog({
                             busy={busy}
                             busyLabel="Applying…"
                             disabled={
-                                !apiAvailable ||
                                 !webResourceName ||
                                 (target === 'app' && !appId)
                             }
