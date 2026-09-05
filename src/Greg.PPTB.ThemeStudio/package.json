@@ -31,6 +31,8 @@
         "test": "vitest run",
         "lint": "oxlint",
         "lint:fix": "oxlint --fix",
+        "storybook": "storybook dev -p 6006",
+        "build-storybook": "storybook build",
         "finalize-package": "npm shrinkwrap",
         "validate": "pptb-validate",
         "version-stable": "npm version patch --no-git-tag-version",
@@ -44,6 +46,10 @@
     },
     "devDependencies": {
         "@pptb/types": "^1.2.5",
+        "@shko.online/pptb-mock": "^1.0.11",
+        "@storybook/addon-docs": "^10.6.0",
+        "@storybook/react": "^10.6.0",
+        "@storybook/react-vite": "^10.6.0",
         "@types/node": "^26.4.1",
         "@types/react": "^19.2.18",
         "@types/react-dom": "^19.2.5",
@@ -51,6 +57,7 @@
         "jsdom": "^30.0.1",
         "oxlint": "^1.81.0",
         "oxlint-tsgolint": "^7.0.2001",
+        "storybook": "^10.6.0",
         "typescript": "^7.0.2",
         "vite": "^8.2.2",
         "vitest": "^4.1.11"
